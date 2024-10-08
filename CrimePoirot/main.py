@@ -97,6 +97,40 @@ def run_gitleaks(repo_path,collection,repo_url):
         print("Error running Gitleaks:", e)
         sys.exit(1)
 
+def run_guarddog(clone_dir):
+    if not os.path.exists(clone_dir):
+        print(f"Error: {clone_dir} does not exist.")
+        return
+
+    try:
+
+        requirements_path = os.path.join(clone_dir, 'requirements.txt')
+        
+        output_file = os.path.join(clone_dir, 'guarddog.sarif')
+        
+        command = [
+            'guarddog', 'pypi', 'verify', requirements_path,
+            '--output-format', 'sarif', 
+            '--exclude-rules', 'repository_integrity_mismatch'
+        ]
+
+        print(f"Running GuardDog to scan {requirements_path}...")
+
+        
+        with open(output_file, 'w') as outfile:
+            result = subprocess.run(command, stdout=outfile, stderr=subprocess.PIPE, text=True)
+
+        if result.returncode == 0:
+            print("GuardDog completed successfully. Report saved as guarddog.sarif.")
+            
+        else:
+            print(f"GuardDog encountered an error (exit code: {result.returncode}).")
+            print(result.stderr)  
+
+    except Exception as e:
+        print(f"Error running GuardDog: {e}")
+
+
 if __name__ == "__main__":
     # Connect to MongoDB Atlas and get the collection
     collection = connect_to_mongo()  # This stores the collection returned from connect_to_mongo
@@ -108,4 +142,4 @@ if __name__ == "__main__":
     # Run Gitleaks and pass the collection object to it
     run_gitleaks(repo_path, collection,repo_url)  # Collection is passed here to run_gitleak
     
-    
+    run_guarddog(repo_path)
