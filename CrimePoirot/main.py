@@ -5,16 +5,19 @@ import io
 import json
 from pymongo import MongoClient
 
-def connect_to_mongo():
+def connect_to_mongo(repo_name):
     try:
         mongo_url = "mongodb+srv://kmitsionis:iD0thfzj2mZWq78q@cluster0.dqqb4yn.mongodb.net/"
         client = MongoClient(mongo_url)
         db = client["gitleaks_reports"]
-        collection = db["reports"]
+        
+        # Collection names must be lowercase and can only contain letters, numbers, underscores, and dollar signs
+        collection_name = repo_name.lower().replace(' ', '_')  # Format repo name for collection
+        collection = db[collection_name]  # Create a collection with the repo name
         return collection
     except Exception as e:
-         print(f"Failed to connect to MongoDB: {e}")
-         sys.exit(1)   
+        print(f"Failed to connect to MongoDB: {e}")
+        sys.exit(1)  
 
 def store_mongo(report_data, collection, repo_name):
     try:
@@ -122,7 +125,7 @@ def run_guarddog(clone_dir):
 
         if result.returncode == 0:
             print("GuardDog completed successfully. Report saved as guarddog.sarif.")
-            
+
         else:
             print(f"GuardDog encountered an error (exit code: {result.returncode}).")
             print(result.stderr)  
@@ -132,12 +135,17 @@ def run_guarddog(clone_dir):
 
 
 if __name__ == "__main__":
-    # Connect to MongoDB Atlas and get the collection
-    collection = connect_to_mongo()  # This stores the collection returned from connect_to_mongo
-
     # Get repo URL from user input
     repo_url = input("Enter the repository URL: ")
-    repo_path = clone_repo(repo_url)  # Clone the repository or get existing path
+    
+    # Connect to MongoDB Atlas and get the collection
+    repo_name = get_repo_name(repo_url)
+    repo_path = clone_repo(repo_url)
+    
+    
+    collection = connect_to_mongo(repo_name)  # This stores the collection returned from connect_to_mongo
+
+  
 
     # Run Gitleaks and pass the collection object to it
     run_gitleaks(repo_path, collection,repo_url)  # Collection is passed here to run_gitleak
