@@ -1,13 +1,21 @@
 import subprocess
 import os
 import sys
-import io
 import json
 from pymongo import MongoClient
+from dotenv import load_dotenv
+
+
+#After enabling venv you have to do  $env:PYTHONUTF8="1" in order to make guarddog run properly.
+
+
+
+# Load environment variables from the .env file
+load_dotenv()
 
 def connect_to_mongo(repo_name):
     try:
-        mongo_url = "mongodb+srv://kmitsionis:iD0thfzj2mZWq78q@cluster0.dqqb4yn.mongodb.net/"
+        mongo_url = os.getenv("MONGO_URL")  # Get MongoDB URL from environment variable
         client = MongoClient(mongo_url)
         db = client["gitleaks_reports"]
         
@@ -40,15 +48,14 @@ def store_mongo(report_data, collection, repo_name):
     except Exception as e:
         print(f"Error storing report in MongoDB: {e}")
 
-
 def get_repo_name(repo_url):
     """Extract the repository name from the URL."""
     return repo_url.split('/')[-1].replace('.git', '')
 
 def clone_repo(repo_url):
     repo_name = get_repo_name(repo_url)
-    # Set the base directory where you want to clone the repos
-    base_dir = r'C:\Users\Panagiota\Desktop\RepoForTest'  # Adjust this path as needed
+    # Use BASE_DIR from the .env file
+    base_dir = os.getenv("BASE_DIR")  # Get base directory from environment variable
     clone_dir = os.path.join(base_dir, repo_name)  # Set the clone directory path
 
     # Check if the clone directory already exists
@@ -65,9 +72,8 @@ def clone_repo(repo_url):
         print("Error cloning the repository:", e)
         sys.exit(1)
 
-
-def run_gitleaks(repo_path,collection,repo_url):
-    gitleaks_path = r'C:\Users\Panagiota\Desktop\gitleaks\gitleaks\gitleaks.exe'  # Full path to gitleaks.exe
+def run_gitleaks(repo_path, collection, repo_url):
+    gitleaks_path = os.getenv("GITLEAKS_PATH")  # Get path to gitleaks executable from environment variable
     report_path = os.path.join(repo_path, 'gitleaks_report.json')  # Set report path
 
     try:
@@ -89,7 +95,7 @@ def run_gitleaks(repo_path,collection,repo_url):
                 with open(report_path) as report_file:
                     report_data = report_file.read()
                     repo_name = get_repo_name(repo_url)  # Extract repo name for context
-                    store_mongo(report_data,collection, repo_name)  # Store in MongoDB
+                    store_mongo(report_data, collection, repo_name)  # Store in MongoDB
             else:
                 print(f"Report file not found: {report_path}")
         else:
@@ -106,9 +112,7 @@ def run_guarddog(clone_dir):
         return
 
     try:
-
         requirements_path = os.path.join(clone_dir, 'requirements.txt')
-        
         output_file = os.path.join(clone_dir, 'guarddog.sarif')
         
         command = [
@@ -119,20 +123,17 @@ def run_guarddog(clone_dir):
 
         print(f"Running GuardDog to scan {requirements_path}...")
 
-        
         with open(output_file, 'w') as outfile:
             result = subprocess.run(command, stdout=outfile, stderr=subprocess.PIPE, text=True)
 
         if result.returncode == 0:
             print("GuardDog completed successfully. Report saved as guarddog.sarif.")
-
         else:
             print(f"GuardDog encountered an error (exit code: {result.returncode}).")
             print(result.stderr)  
 
     except Exception as e:
         print(f"Error running GuardDog: {e}")
-
 
 if __name__ == "__main__":
     # Get repo URL from user input
@@ -142,12 +143,8 @@ if __name__ == "__main__":
     repo_name = get_repo_name(repo_url)
     repo_path = clone_repo(repo_url)
     
-    
     collection = connect_to_mongo(repo_name)  # This stores the collection returned from connect_to_mongo
 
-  
-
     # Run Gitleaks and pass the collection object to it
-    run_gitleaks(repo_path, collection,repo_url)  # Collection is passed here to run_gitleak
-    
+    run_gitleaks(repo_path, collection, repo_url)  # Collection is passed here to run_gitleak
     run_guarddog(repo_path)
