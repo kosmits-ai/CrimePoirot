@@ -7,7 +7,10 @@ set +o allexport  # Disable automatic export of variables
 
 # Define the necessary directories from the .env file
 OUTPUT_DIR="${OUTPUT_DIR}"   # Output directory for scan results
-SCAN_REPO_DIR="${SCAN_REPO_DIR}"  # Directory of the repo to be scanned
+
+read -p 'Enter the directory of the repository to be scanned: ' SCAN_REPO_DIR
+
+
 setup_environment() {
     echo "Setting up the environment..."
     
