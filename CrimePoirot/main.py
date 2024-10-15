@@ -6,21 +6,21 @@ from pymongo import MongoClient
 from dotenv import load_dotenv
 
 
-#After enabling venv you have to do  $env:PYTHONUTF8="1" in order to make guarddog run properly.
+##############After enabling venv you have to do  $env:PYTHONUTF8="1" in order to make guarddog and safety run properly.#######################
 
 
 
 # Load environment variables from the .env file
 load_dotenv()
 
-def connect_to_mongo(repo_name):
+def connect_to_mongo(collection_name):
     try:
         mongo_url = os.getenv("MONGO_URL")  # Get MongoDB URL from environment variable
         client = MongoClient(mongo_url)
-        db = client["gitleaks_reports"]
+        db = client["DiplomaThesis"]
         
         # Collection names must be lowercase and can only contain letters, numbers, underscores, and dollar signs
-        collection_name = repo_name.lower().replace(' ', '_')  # Format repo name for collection
+        # Format repo name for collection
         collection = db[collection_name]  # Create a collection with the repo name
         return collection
     except Exception as e:
@@ -106,11 +106,20 @@ def run_gitleaks(repo_path, collection, repo_url):
         print("Error running Gitleaks:", e)
         sys.exit(1)
 
-def run_safety(repo_path):
+def run_safety(repo_path,collection):
     try:
         os.chdir(repo_path)
         print("Running Safety...")
-        result = subprocess.run(['safety', 'scan'])
+        result = subprocess.run(['safety', 'scan', '--detailed-output'],capture_output=True, text=True)
+        report_data = result.stdout
+        repo_name = get_repo_name(repo_url)     
+        document = {
+                "repo_name": repo_name,
+                "tool": "Safety",
+                "output": report_data,
+                "status": result.returncode  # Need to transform plain text to JSON object.
+            }
+        collection.insert_one(document)
     except Exception as e:
         print("Error running Safety:", e)
         sys.exit(1)
@@ -155,9 +164,9 @@ if __name__ == "__main__":
     repo_name = get_repo_name(repo_url)
     repo_path = clone_repo(repo_url)
     
-    collection = connect_to_mongo(repo_name)  # This stores the collection returned from connect_to_mongo
-
+    collection = connect_to_mongo('gitleaks_reports')  # This stores the collection returned from connect_to_mongo
     # Run Gitleaks and pass the collection object to it
     run_gitleaks(repo_path, collection, repo_url)  # Collection is passed here to run_gitleak
     run_guarddog(repo_path)
-    run_safety(repo_path)
+    collection = connect_to_mongo('safety_reports')
+    run_safety(repo_path,collection)
