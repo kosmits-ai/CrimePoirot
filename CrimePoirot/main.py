@@ -18,10 +18,7 @@ def connect_to_mongo(collection_name):
         mongo_url = os.getenv("MONGO_URL")  # Get MongoDB URL from environment variable
         client = MongoClient(mongo_url)
         db = client["DiplomaThesis"]
-        
-        # Collection names must be lowercase and can only contain letters, numbers, underscores, and dollar signs
-        # Format repo name for collection
-        collection = db[collection_name]  # Create a collection with the repo name
+        collection = db[collection_name]  
         return collection
     except Exception as e:
         print(f"Failed to connect to MongoDB: {e}")
@@ -123,9 +120,6 @@ def run_safety(repo_path,collection):
     except Exception as e:
         print("Error running Safety:", e)
         sys.exit(1)
-
-
-
 
 def run_guarddog(clone_dir):
     if not os.path.exists(clone_dir):
