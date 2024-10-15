@@ -1,5 +1,7 @@
 #!/bin/bash
 
+#Enable WSL connection
+
 # Load environment variables from .env file
 set -o allexport  # Enable automatic export of variables
 source ../.env 

@@ -117,11 +117,15 @@ def run_safety(repo_path,collection):
                 "status": result.returncode  # Need to transform plain text to JSON object.
             }
         collection.insert_one(document)
+        print("Safety completed successfully")
+        
     except Exception as e:
         print("Error running Safety:", e)
         sys.exit(1)
 
-def run_guarddog(clone_dir):
+def run_guarddog(clone_dir,collection):
+    
+    repo_name = get_repo_name(repo_url)
     if not os.path.exists(clone_dir):
         print(f"Error: {clone_dir} does not exist.")
         return
@@ -140,15 +144,23 @@ def run_guarddog(clone_dir):
 
         with open(output_file, 'w') as outfile:
             result = subprocess.run(command, stdout=outfile, stderr=subprocess.PIPE, text=True)
-
-        if result.returncode == 0:
-            print("GuardDog completed successfully. Report saved as guarddog.sarif.")
-        else:
-            print(f"GuardDog encountered an error (exit code: {result.returncode}).")
-            print(result.stderr)  
-
+        
+        with open(output_file, 'r') as sarif_file:
+            sarif_data = json.load(sarif_file)
+        
+        output_data = sarif_data.get('runs', [])[0].get('results', [])
+        document = {
+            "repo_name": repo_name,
+            "output": output_data
+        }
+        collection.insert_one(document)
+        print("Guardrdog completed successfully.")
+    
     except Exception as e:
-        print(f"Error running GuardDog: {e}")
+        print("Error running Guarddog:", e)
+        sys.exit(1)
+
+        
 
 if __name__ == "__main__":
     os.environ["PYTHONUTF8"] = "1"
@@ -163,6 +175,9 @@ if __name__ == "__main__":
     collection = connect_to_mongo('gitleaks_reports')  # This stores the collection returned from connect_to_mongo
     # Run Gitleaks and pass the collection object to it
     run_gitleaks(repo_path, collection, repo_url)  # Collection is passed here to run_gitleak
-    run_guarddog(repo_path)
+    
+    collection = connect_to_mongo('guarddog_reports')
+    run_guarddog(repo_path,collection)
+    
     collection = connect_to_mongo('safety_reports')
     run_safety(repo_path,collection)
