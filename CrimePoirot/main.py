@@ -106,6 +106,18 @@ def run_gitleaks(repo_path, collection, repo_url):
         print("Error running Gitleaks:", e)
         sys.exit(1)
 
+def run_safety(repo_path):
+    try:
+        os.chdir(repo_path)
+        print("Running Safety...")
+        result = subprocess.run(['safety', 'scan'])
+    except Exception as e:
+        print("Error running Safety:", e)
+        sys.exit(1)
+
+
+
+
 def run_guarddog(clone_dir):
     if not os.path.exists(clone_dir):
         print(f"Error: {clone_dir} does not exist.")
@@ -148,3 +160,4 @@ if __name__ == "__main__":
     # Run Gitleaks and pass the collection object to it
     run_gitleaks(repo_path, collection, repo_url)  # Collection is passed here to run_gitleak
     run_guarddog(repo_path)
+    run_safety(repo_path)
