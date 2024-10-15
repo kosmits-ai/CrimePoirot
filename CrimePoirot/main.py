@@ -151,6 +151,8 @@ def run_guarddog(clone_dir):
         print(f"Error running GuardDog: {e}")
 
 if __name__ == "__main__":
+    os.environ["PYTHONUTF8"] = "1"
+
     # Get repo URL from user input
     repo_url = input("Enter the repository URL: ")
     
