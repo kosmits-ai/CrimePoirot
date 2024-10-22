@@ -2,9 +2,10 @@ import subprocess
 import os
 import sys
 import json
+import re
+from collections import defaultdict
 from pymongo import MongoClient
 from dotenv import load_dotenv
-
 
 ##############After enabling venv you have to do  $env:PYTHONUTF8="1" in order to make guarddog and safety run properly.#######################
 
@@ -69,6 +70,55 @@ def clone_repo(repo_url):
         print("Error cloning the repository:", e)
         sys.exit(1)
 
+def get_current_commit(repo_path):
+    """Returns the current commit hash of the repo at the given path."""
+    try:
+        # Navigate to the repository directory
+        result = subprocess.run(
+            ['git', '-C', repo_path, 'rev-parse', 'HEAD'], 
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        if result.returncode == 0:
+            # The current commit hash
+            current_commit = result.stdout.strip()
+            return current_commit
+        else:
+            print(f"Error getting the current commit: {result.stderr}")
+            return None
+    except Exception as e:
+        print(f"Error while getting current commit: {e}")
+        return None
+
+
+
+def analyze_gitleaks_report(report_data):
+    leaks = json.loads(report_data)
+
+    total_leaks = len(leaks)
+    print(f"Total leaks found: {total_leaks}")
+
+    leaks_by_commit = defaultdict(int)
+
+    for leak in leaks:
+        commit = leak["Commit"]
+        leaks_by_commit[commit] += 1
+
+    # Output the analysis summary
+    for commit, count in leaks_by_commit.items():
+        print(f"Commit: {commit} - Total Leaks: {count}")
+
+
+
+def analyze_guarddog(report_data):
+    output_data = report_data.get('runs', [])[0].get('results', [])
+    total_results = len(output_data)
+    print(f"Total warnings of maliciousness found: {total_results}")
+
+
+
+
 def run_gitleaks(repo_path, collection, repo_url):
     gitleaks_path = os.getenv("GITLEAKS_PATH")  # Get path to gitleaks executable from environment variable
     report_path = os.path.join(repo_path, 'gitleaks_report.json')  # Set report path
@@ -93,6 +143,7 @@ def run_gitleaks(repo_path, collection, repo_url):
                     report_data = report_file.read()
                     repo_name = get_repo_name(repo_url)  # Extract repo name for context
                     store_mongo(report_data, collection, repo_name)  # Store in MongoDB
+                    analyze_gitleaks_report(report_data)
             else:
                 print(f"Report file not found: {report_path}")
         else:
@@ -103,27 +154,63 @@ def run_gitleaks(repo_path, collection, repo_url):
         print("Error running Gitleaks:", e)
         sys.exit(1)
 
-def run_safety(repo_path,collection):
+
+def run_safety(repo_path, collection,repo_url):
     try:
         os.chdir(repo_path)
         print("Running Safety...")
-        result = subprocess.run(['safety', 'scan', '--detailed-output'],capture_output=True, text=True)
-        report_data = result.stdout
-        repo_name = get_repo_name(repo_url)     
-        document = {
-                "repo_name": repo_name,
-                "tool": "Safety",
-                "output": report_data,
-                "status": result.returncode  # Need to transform plain text to JSON object.
-            }
-        collection.insert_one(document)
-        print("Safety completed successfully")
-        
-    except Exception as e:
-        print("Error running Safety:", e)
-        sys.exit(1)
 
-def run_guarddog(clone_dir,collection):
+        # Run the safety scan command
+        result = subprocess.run(['safety', 'scan', '--detailed-output'], capture_output=True, text=True)
+
+        repo_name = get_repo_name(repo_url)
+
+        # Print the raw output for debugging
+        print("Safety scan output:\n", result.stdout)
+
+        # Split the output into lines
+        lines = result.stdout.splitlines()
+        vulnerabilities = []
+        package_name = None
+
+        for line in lines:
+            print("Processing line:", line)
+
+            # Match the package line with vulnerabilities count
+            package_match = re.match(r"^(.*?)==(\d+\.\d+\.\d+)\s+\[(\d+ vulnerabilities found)\]$", line.strip())
+            if package_match:
+                package_name = package_match.group(1)
+                print(f"Package found: {package_name}")
+                continue
+
+            # Match vulnerability details
+            vuln_match = re.match(r"^\s*-> Vuln ID (\d+): CVE-(\d+)-(\d+), CVSS Severity (.*)", line.strip())
+            if vuln_match and package_name:
+                vuln_id = vuln_match.group(1)
+                severity = vuln_match.group(4)  # Using group 4 for severity
+                vulnerabilities.append({
+                    "repo_name": repo_name,
+                    "package_name": package_name,
+                    "vuln_id": vuln_id,
+                    "severity": severity
+                })
+                print(f"Vulnerability added: {vuln_id} - Severity: {severity}")
+
+        # Insert vulnerabilities into the database if found
+        if vulnerabilities:
+            collection.insert_many(vulnerabilities)
+            print(f"Inserted {len(vulnerabilities)} vulnerabilities for repo {repo_name} into the database.")
+        else:
+            print("No vulnerabilities found.")
+
+    except FileNotFoundError:
+        print(f"Error: The directory {repo_path} does not exist.")
+    except subprocess.CalledProcessError as e:
+        print(f"Error running safety scan: {e.stderr}")
+    except Exception as e:
+        print(f"An unexpected error occurred: {str(e)}")
+
+def run_guarddog(clone_dir,collection,repo_url):
     
     repo_name = get_repo_name(repo_url)
     if not os.path.exists(clone_dir):
@@ -141,6 +228,7 @@ def run_guarddog(clone_dir,collection):
         ]
 
         print(f"Running GuardDog to scan {requirements_path}...")
+        print()
 
         with open(output_file, 'w') as outfile:
             result = subprocess.run(command, stdout=outfile, stderr=subprocess.PIPE, text=True)
@@ -149,11 +237,19 @@ def run_guarddog(clone_dir,collection):
             sarif_data = json.load(sarif_file)
         
         output_data = sarif_data.get('runs', [])[0].get('results', [])
-        document = {
-            "repo_name": repo_name,
-            "output": output_data
-        }
-        collection.insert_one(document)
+        
+        for result in output_data:
+            rule_id = result.get('ruleId', 'N/A')
+            output_text = result.get('message', {}).get('text', 'N/A') 
+            document = {
+                "repo_name": repo_name,
+                "rule_id": rule_id,
+                "output_text": output_text
+                 }
+            collection.insert_one(document)
+
+        analyze_guarddog(sarif_data)
+        print()
         print("Guardrdog completed successfully.")
     
     except Exception as e:
@@ -172,12 +268,23 @@ if __name__ == "__main__":
     repo_name = get_repo_name(repo_url)
     repo_path = clone_repo(repo_url)
     
+    current_commit = get_current_commit(repo_path)
+    if current_commit:
+        print(f"Current commit hash: {current_commit}")
+        print()
+    else:
+        print("Failed to retrieve current commit.")
+        print()
+
+
+
+
     collection = connect_to_mongo('gitleaks_reports')  # This stores the collection returned from connect_to_mongo
     # Run Gitleaks and pass the collection object to it
     run_gitleaks(repo_path, collection, repo_url)  # Collection is passed here to run_gitleak
     
     collection = connect_to_mongo('guarddog_reports')
-    run_guarddog(repo_path,collection)
+    run_guarddog(repo_path,collection,repo_url)
     
     collection = connect_to_mongo('safety_reports')
-    run_safety(repo_path,collection)
+    run_safety(repo_path,collection,repo_url)
