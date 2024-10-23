@@ -93,7 +93,7 @@ def get_current_commit(repo_path):
 
 
 
-def analyze_gitleaks_report(report_data):
+def analyze_gitleaks_report(report_data, current_commit):
     leaks = json.loads(report_data)
 
     total_leaks = len(leaks)
@@ -104,11 +104,12 @@ def analyze_gitleaks_report(report_data):
     for leak in leaks:
         commit = leak["Commit"]
         leaks_by_commit[commit] += 1
+        if current_commit == commit:
+            print(f"Number of leaks in the current commit ({current_commit}): {leaks_by_commit[current_commit]}")
 
     # Output the analysis summary
     for commit, count in leaks_by_commit.items():
         print(f"Commit: {commit} - Total Leaks: {count}")
-
 
 
 def analyze_guarddog(report_data):
@@ -119,7 +120,7 @@ def analyze_guarddog(report_data):
 
 
 
-def run_gitleaks(repo_path, collection, repo_url):
+def run_gitleaks(repo_path, collection, repo_url,current_commit):
     gitleaks_path = os.getenv("GITLEAKS_PATH")  # Get path to gitleaks executable from environment variable
     report_path = os.path.join(repo_path, 'gitleaks_report.json')  # Set report path
 
@@ -142,8 +143,8 @@ def run_gitleaks(repo_path, collection, repo_url):
                 with open(report_path) as report_file:
                     report_data = report_file.read()
                     repo_name = get_repo_name(repo_url)  # Extract repo name for context
-                    store_mongo(report_data, collection, repo_name)  # Store in MongoDB
-                    analyze_gitleaks_report(report_data)
+                   # store_mongo(report_data, collection, repo_name)  # Store in MongoDB
+                    analyze_gitleaks_report(report_data, current_commit)
             else:
                 print(f"Report file not found: {report_path}")
         else:
@@ -155,7 +156,9 @@ def run_gitleaks(repo_path, collection, repo_url):
         sys.exit(1)
 
 
-def run_safety(repo_path, collection,repo_url):
+
+
+def run_safety(repo_path, collection, repo_url): 
     try:
         os.chdir(repo_path)
         print("Running Safety...")
@@ -174,18 +177,18 @@ def run_safety(repo_path, collection,repo_url):
         package_name = None
 
         for line in lines:
-            print("Processing line:", line)
-
-            # Match the package line with vulnerabilities count
-            package_match = re.match(r"^(.*?)==(\d+\.\d+\.\d+)\s+\[(\d+ vulnerabilities found)\]$", line.strip())
+            # Match the package line with vulnerabilities count (handles both singular/plural)
+            package_match = re.match(r"^(.*?)==(\d+\.\d+\.\d+)\s+\[(\d+) vulnerabilit(?:y|ies) found\]$", line.strip())
             if package_match:
+                # Found a new package, set the package name
                 package_name = package_match.group(1)
                 print(f"Package found: {package_name}")
                 continue
 
-            # Match vulnerability details
-            vuln_match = re.match(r"^\s*-> Vuln ID (\d+): CVE-(\d+)-(\d+), CVSS Severity (.*)", line.strip())
+            # Match vulnerability details with or without CVE
+            vuln_match = re.match(r"^\s*-> Vuln ID (\d+): (?:CVE-(\d+)-(\d+), )?CVSS Severity (.*)", line.strip())
             if vuln_match and package_name:
+                # Found a vulnerability for the current package
                 vuln_id = vuln_match.group(1)
                 severity = vuln_match.group(4)  # Using group 4 for severity
                 vulnerabilities.append({
@@ -195,6 +198,7 @@ def run_safety(repo_path, collection,repo_url):
                     "severity": severity
                 })
                 print(f"Vulnerability added: {vuln_id} - Severity: {severity}")
+                print()
 
         # Insert vulnerabilities into the database if found
         if vulnerabilities:
@@ -209,6 +213,7 @@ def run_safety(repo_path, collection,repo_url):
         print(f"Error running safety scan: {e.stderr}")
     except Exception as e:
         print(f"An unexpected error occurred: {str(e)}")
+
 
 def run_guarddog(clone_dir,collection,repo_url):
     
@@ -256,7 +261,20 @@ def run_guarddog(clone_dir,collection,repo_url):
         print("Error running Guarddog:", e)
         sys.exit(1)
 
-        
+
+def query_severity(collection,repo_name):
+    num_high_severity = 0
+    high_severity_docs = collection.find({"severity": "HIGH", "repo_name": repo_name})
+    for doc in high_severity_docs:
+        num_high_severity += 1
+    print(num_high_severity)
+
+def leaks_current(collection, current_commit):
+    num_current_leaks = 0
+    leaks = collection.find({"Commit": current_commit})
+    for leak in leaks:  
+        num_current_leaks +=1
+    print(f"Leaks passed in current commit: {num_current_leaks}")
 
 if __name__ == "__main__":
     os.environ["PYTHONUTF8"] = "1"
@@ -281,10 +299,14 @@ if __name__ == "__main__":
 
     collection = connect_to_mongo('gitleaks_reports')  # This stores the collection returned from connect_to_mongo
     # Run Gitleaks and pass the collection object to it
-    run_gitleaks(repo_path, collection, repo_url)  # Collection is passed here to run_gitleak
-    
+    run_gitleaks(repo_path, collection, repo_url, current_commit)  # Collection is passed here to run_gitleak
+    leaks_current(collection, current_commit)
+    print()
+    print()
+
     collection = connect_to_mongo('guarddog_reports')
     run_guarddog(repo_path,collection,repo_url)
     
     collection = connect_to_mongo('safety_reports')
     run_safety(repo_path,collection,repo_url)
+    query_severity(collection,repo_name)
