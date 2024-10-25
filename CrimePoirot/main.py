@@ -350,14 +350,27 @@ def run_ash_scan(repo_path):
     output_file = os.path.join(OUTPUT_DIR, 'aggregated_results.txt')
 
     try:
-        subprocess.run(
+        # Run the ASH scan command
+        result = subprocess.run(
             ['./ash', '--source-dir', repo_path, '--output-dir', OUTPUT_DIR],
             cwd=ash_repo_path,
-            check=True
+            capture_output=True,  # Capture stdout and stderr
+            text=True,            # Return output as string
+            check=False           # Do not raise an exception on non-zero exit code
         )
-        print(f"Scan completed. The report is available at {output_file}")
-    except subprocess.CalledProcessError as e:
-        print(f"Error running ASH scan: {e}")
+        
+        # Handle the return code
+        if result.returncode == 0:
+            print(f"Scan completed successfully. The report is available at {output_file}")
+        elif result.returncode == 1:
+            # Suppress error message for vulnerabilities found
+            print("ASH scan found vulnerabilities, but no error output.")
+        else:
+            # Handle other non-zero exit codes
+            print(f"An error occurred during the ASH scan: {result.stderr}")
+
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
         exit(1)
 
 
@@ -398,11 +411,11 @@ if __name__ == "__main__":
         print()
 
     collection = connect_to_mongo('gitleaks_reports')  # This stores the collection returned from connect_to_mongo
-    #Run Gitleaks and pass the collection object to it
+    # Run Gitleaks and pass the collection object to it
     run_gitleaks(repo_path, collection, repo_url, current_commit)  # Collection is passed here to run_gitleaks
     leaks_current(collection, current_commit)
-    #print()
-    #print()
+    print()
+    print()
 
     collection = connect_to_mongo('guarddog_reports')
     run_guarddog(repo_path, collection, repo_url)
