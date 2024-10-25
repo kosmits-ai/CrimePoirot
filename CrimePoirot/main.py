@@ -336,8 +336,13 @@ def clone_and_setup_ash():
         print(f"Error setting up dependencies: {e}")
         exit(1)
 
+def strip_ansi_escape_codes(text):
+    """Remove ANSI escape codes from a string."""
+    ansi_escape = re.compile(r'\x1B\[[0-?9;]*[mK]')
+    return ansi_escape.sub('', text)
 
-def run_ash_scan(repo_path):
+
+def run_ash_scan(repo_path,repo_name,collection):
     """Run ASH scan on the specified repository directory."""
     print(f"Running ASH scan on {repo_path}...")
 
@@ -348,7 +353,6 @@ def run_ash_scan(repo_path):
 
     ash_repo_path = os.path.join(REPO_DIR, REPO_NAME)
     output_file = os.path.join(OUTPUT_DIR, 'aggregated_results.txt')
-
     try:
         # Run the ASH scan command
         result = subprocess.run(
@@ -359,15 +363,32 @@ def run_ash_scan(repo_path):
             check=False           # Do not raise an exception on non-zero exit code
         )
         
-        # Handle the return code
-        if result.returncode == 0:
-            print(f"Scan completed successfully. The report is available at {output_file}")
-        elif result.returncode == 1:
-            # Suppress error message for vulnerabilities found
-            print("ASH scan found vulnerabilities, but no error output.")
-        else:
-            # Handle other non-zero exit codes
-            print(f"An error occurred during the ASH scan: {result.stderr}")
+        job_results = []
+
+        # Example of how to extract job results from output
+        for line in result.stdout.splitlines():
+            if "Dockerfile" in line and "returned" in line:
+                parts = line.split()
+                dockerfile_name = parts[1]
+                raw_return_code = parts[-1]  # Get the return code
+
+                # Clean the return code
+                return_code = strip_ansi_escape_codes(raw_return_code)
+
+                job_results.append({
+                    "dockerfile": dockerfile_name,
+                    "return_code": return_code
+                })
+
+        # Document structure for MongoDB
+        document = {
+            "repo_name": repo_name,
+            "job_results": job_results
+        }
+
+        # Insert the document into MongoDB
+        collection.insert_one(document)
+        print(f"Scan results for {repo_name} inserted into the database.")
 
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
@@ -385,11 +406,11 @@ def display_report():
         print("No report found.")
 
 
-def main(repo_path):
+def main(repo_path,repo_name,collection):
     """Main function to orchestrate the setup, scanning, and reporting."""
     setup_environment()
     clone_and_setup_ash()
-    run_ash_scan(repo_path)
+    run_ash_scan(repo_path,repo_name,collection)
     display_report()
 
 if __name__ == "__main__":
@@ -423,5 +444,5 @@ if __name__ == "__main__":
     collection = connect_to_mongo('safety_reports')
     run_safety(repo_path, collection, repo_url)
     query_severity(collection, repo_name)
-
-    main(repo_path)
+    collection = connect_to_mongo('ash_reports')
+    main(repo_path,repo_name,collection)
