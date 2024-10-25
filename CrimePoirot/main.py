@@ -7,8 +7,7 @@ from collections import defaultdict
 from pymongo import MongoClient
 from dotenv import load_dotenv
 
-##############After enabling venv you have to do  $env:PYTHONUTF8="1" in order to make guarddog and safety run properly.#######################
-
+############## After enabling venv you have to do $env:PYTHONUTF8="1" in order to make guarddog and safety run properly. #######################
 
 
 # Load environment variables from the .env file
@@ -91,8 +90,6 @@ def get_current_commit(repo_path):
         print(f"Error while getting current commit: {e}")
         return None
 
-
-
 def analyze_gitleaks_report(report_data, current_commit):
     leaks = json.loads(report_data)
 
@@ -111,39 +108,59 @@ def analyze_gitleaks_report(report_data, current_commit):
     for commit, count in leaks_by_commit.items():
         print(f"Commit: {commit} - Total Leaks: {count}")
 
-
 def analyze_guarddog(report_data):
     output_data = report_data.get('runs', [])[0].get('results', [])
     total_results = len(output_data)
     print(f"Total warnings of maliciousness found: {total_results}")
 
-
-
-
-def run_gitleaks(repo_path, collection, repo_url,current_commit):
+def run_gitleaks(repo_path, collection, repo_url, current_commit):
     gitleaks_path = os.getenv("GITLEAKS_PATH")  # Get path to gitleaks executable from environment variable
+    print(f"Gitleaks path: {gitleaks_path}")  # Print the path for debugging
     report_path = os.path.join(repo_path, 'gitleaks_report.json')  # Set report path
 
     try:
         print(f"Running Gitleaks on {repo_path}...")
-        result = subprocess.run(
-            [gitleaks_path, 'git', repo_path, '--report-format', 'json', '--report-path', report_path],
-            check=False,  # Set check to False to allow capturing exit codes
+
+        # Mark the directory as safe for Git (prevents dubious ownership errors)
+        result_git_safe = subprocess.run(
+            ['git', 'config', '--global', '--add', 'safe.directory', repo_path],
+            check=False,
             capture_output=True,
             text=True
         )
-        
+        if result_git_safe.returncode != 0:
+            print(f"Error marking directory as safe: {result_git_safe.stderr}")
+            sys.exit(1)
+
+        # Verify that the Gitleaks path exists
+        if not os.path.isfile(gitleaks_path):
+            print(f"Error: Gitleaks executable not found at {gitleaks_path}")
+            sys.exit(1)
+
+        # Debug the command being run
+        print(f"Command to run: [{gitleaks_path}, 'detect', '--source', {repo_path}, '--report-format', 'json', '--report-path', {report_path}]")
+
+        # Run Gitleaks with the "detect" command
+        result = subprocess.run(
+            [gitleaks_path, 'detect', '--source', repo_path, '--report-format', 'json', '--report-path', report_path],
+            check=False,  # Allow capturing exit codes
+            capture_output=True,
+            text=True
+        )
+
+        # Output stdout and stderr for debugging
+        print("Gitleaks stdout:", result.stdout)
+        print("Gitleaks stderr:", result.stderr)
+
         # Check the exit code
         if result.returncode == 0:
             print("Gitleaks completed successfully.")
         elif result.returncode == 1:
             print("Gitleaks found leaks.")
-            # Check if the report file exists before trying to open it
             if os.path.exists(report_path):
                 with open(report_path) as report_file:
                     report_data = report_file.read()
                     repo_name = get_repo_name(repo_url)  # Extract repo name for context
-                   # store_mongo(report_data, collection, repo_name)  # Store in MongoDB
                     analyze_gitleaks_report(report_data, current_commit)
             else:
                 print(f"Report file not found: {report_path}")
@@ -155,16 +172,13 @@ def run_gitleaks(repo_path, collection, repo_url,current_commit):
         print("Error running Gitleaks:", e)
         sys.exit(1)
 
-
-
-
 def run_safety(repo_path, collection, repo_url): 
     try:
         os.chdir(repo_path)
-        print("Running Safety...")
+        print(f"Running Safety on {repo_path}...")
 
         # Run the safety scan command
-        result = subprocess.run(['safety', 'scan', '--detailed-output'], capture_output=True, text=True)
+        result = subprocess.run(['safety', 'scan'], capture_output=True, text=True)
 
         repo_name = get_repo_name(repo_url)
 
@@ -188,7 +202,6 @@ def run_safety(repo_path, collection, repo_url):
             # Match vulnerability details with or without CVE
             vuln_match = re.match(r"^\s*-> Vuln ID (\d+): (?:CVE-(\d+)-(\d+), )?CVSS Severity (.*)", line.strip())
             if vuln_match and package_name:
-                # Found a vulnerability for the current package
                 vuln_id = vuln_match.group(1)
                 severity = vuln_match.group(4)  # Using group 4 for severity
                 vulnerabilities.append({
@@ -214,9 +227,7 @@ def run_safety(repo_path, collection, repo_url):
     except Exception as e:
         print(f"An unexpected error occurred: {str(e)}")
 
-
-def run_guarddog(clone_dir,collection,repo_url):
-    
+def run_guarddog(clone_dir, collection, repo_url):
     repo_name = get_repo_name(repo_url)
     if not os.path.exists(clone_dir):
         print(f"Error: {clone_dir} does not exist.")
@@ -250,19 +261,18 @@ def run_guarddog(clone_dir,collection,repo_url):
                 "repo_name": repo_name,
                 "rule_id": rule_id,
                 "output_text": output_text
-                 }
+            }
             collection.insert_one(document)
 
         analyze_guarddog(sarif_data)
         print()
-        print("Guardrdog completed successfully.")
+        print("Guarddog completed successfully.")
     
     except Exception as e:
         print("Error running Guarddog:", e)
         sys.exit(1)
 
-
-def query_severity(collection,repo_name):
+def query_severity(collection, repo_name):
     num_high_severity = 0
     high_severity_docs = collection.find({"severity": "HIGH", "repo_name": repo_name})
     for doc in high_severity_docs:
@@ -273,8 +283,101 @@ def leaks_current(collection, current_commit):
     num_current_leaks = 0
     leaks = collection.find({"Commit": current_commit})
     for leak in leaks:  
-        num_current_leaks +=1
+        num_current_leaks += 1
     print(f"Leaks passed in current commit: {num_current_leaks}")
+
+
+
+
+# Define directories from environment variables
+REPO_DIR = os.getenv("REPO_DIR")
+REPO_NAME = "automated-security-helper"
+OUTPUT_DIR = os.getenv("OUTPUT_DIR")
+
+
+def setup_environment():
+    """Set up the necessary environment and dependencies."""
+    print("Setting up the environment...")
+    try:
+        subprocess.run(['sudo', 'apt-get', 'update'], check=True)
+        subprocess.run(['sudo', 'apt-get', 'install', '-y', 'npm'], check=True)
+        subprocess.run(['sudo', 'npm', 'install', '-g', 'pnpm', 'yarn'], check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Error during environment setup: {e}")
+        exit(1)
+
+
+def clone_and_setup_ash():
+    """Clone ASH repo and set up required dependencies."""
+    print("Cloning ASH repository and setting up dependencies...")
+
+    # Ensure the base repository directory exists
+    os.makedirs(REPO_DIR, exist_ok=True)
+    ash_repo_path = os.path.join(REPO_DIR, REPO_NAME)
+
+    # Clone repository if it doesn't exist
+    if not os.path.isdir(ash_repo_path):
+        try:
+            subprocess.run(
+                ['git', 'clone', 'https://github.com/awslabs/automated-security-helper.git', ash_repo_path],
+                check=True
+            )
+        except subprocess.CalledProcessError as e:
+            print(f"Error cloning repository: {e}")
+            exit(1)
+    else:
+        print("ASH repository already exists. Skipping clone.")
+
+    # Install npm dependencies in cdk-nag-scan directory
+    try:
+        cdk_scan_dir = os.path.join(ash_repo_path, 'utils', 'cdk-nag-scan')
+        subprocess.run(['sudo', 'npm', 'install', '--quiet'], cwd=cdk_scan_dir, check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Error setting up dependencies: {e}")
+        exit(1)
+
+
+def run_ash_scan(repo_path):
+    """Run ASH scan on the specified repository directory."""
+    print(f"Running ASH scan on {repo_path}...")
+
+    # Check if the scan repository directory exists
+    if not os.path.isdir(repo_path):
+        print(f"Error: Specified directory {repo_path} does not exist.")
+        exit(1)
+
+    ash_repo_path = os.path.join(REPO_DIR, REPO_NAME)
+    output_file = os.path.join(OUTPUT_DIR, 'aggregated_results.txt')
+
+    try:
+        subprocess.run(
+            ['./ash', '--source-dir', repo_path, '--output-dir', OUTPUT_DIR],
+            cwd=ash_repo_path,
+            check=True
+        )
+        print(f"Scan completed. The report is available at {output_file}")
+    except subprocess.CalledProcessError as e:
+        print(f"Error running ASH scan: {e}")
+        exit(1)
+
+
+def display_report():
+    """Display the aggregated results after the scan."""
+    report_file = os.path.join(OUTPUT_DIR, 'aggregated_results.txt')
+    if os.path.isfile(report_file):
+        print("Aggregated Results:")
+        with open(report_file, 'r') as f:
+            print(f.read())
+    else:
+        print("No report found.")
+
+
+def main(repo_path):
+    """Main function to orchestrate the setup, scanning, and reporting."""
+    setup_environment()
+    clone_and_setup_ash()
+    run_ash_scan(repo_path)
+    display_report()
 
 if __name__ == "__main__":
     os.environ["PYTHONUTF8"] = "1"
@@ -294,19 +397,18 @@ if __name__ == "__main__":
         print("Failed to retrieve current commit.")
         print()
 
-
-
-
     collection = connect_to_mongo('gitleaks_reports')  # This stores the collection returned from connect_to_mongo
-    # Run Gitleaks and pass the collection object to it
-    run_gitleaks(repo_path, collection, repo_url, current_commit)  # Collection is passed here to run_gitleak
+    #Run Gitleaks and pass the collection object to it
+    run_gitleaks(repo_path, collection, repo_url, current_commit)  # Collection is passed here to run_gitleaks
     leaks_current(collection, current_commit)
-    print()
-    print()
+    #print()
+    #print()
 
     collection = connect_to_mongo('guarddog_reports')
-    run_guarddog(repo_path,collection,repo_url)
+    run_guarddog(repo_path, collection, repo_url)
     
     collection = connect_to_mongo('safety_reports')
-    run_safety(repo_path,collection,repo_url)
-    query_severity(collection,repo_name)
+    run_safety(repo_path, collection, repo_url)
+    query_severity(collection, repo_name)
+
+    main(repo_path)
