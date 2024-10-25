@@ -58,15 +58,18 @@ def clone_repo(repo_url):
     # Check if the clone directory already exists
     if os.path.exists(clone_dir):
         print(f"The directory '{clone_dir}' already exists. Skipping cloning.")
+        print()
         return clone_dir  # Return the path of the existing repository
 
     try:
         print(f"Cloning the repository from {repo_url} to {clone_dir}...")
         subprocess.run(['git', 'clone', repo_url, clone_dir], check=True)
         print("Clone completed successfully.")
+        print()
         return clone_dir  # Return the path of the cloned repository
     except subprocess.CalledProcessError as e:
         print("Error cloning the repository:", e)
+        print()
         sys.exit(1)
 
 def get_current_commit(repo_path):
@@ -120,7 +123,7 @@ def run_gitleaks(repo_path, collection, repo_url, current_commit):
 
     try:
         print(f"Running Gitleaks on {repo_path}...")
-
+        print()
         # Mark the directory as safe for Git (prevents dubious ownership errors)
         result_git_safe = subprocess.run(
             ['git', 'config', '--global', '--add', 'safe.directory', repo_path],
@@ -137,9 +140,6 @@ def run_gitleaks(repo_path, collection, repo_url, current_commit):
             print(f"Error: Gitleaks executable not found at {gitleaks_path}")
             sys.exit(1)
 
-        # Debug the command being run
-        print(f"Command to run: [{gitleaks_path}, 'detect', '--source', {repo_path}, '--report-format', 'json', '--report-path', {report_path}]")
-
         # Run Gitleaks with the "detect" command
         result = subprocess.run(
             [gitleaks_path, 'detect', '--source', repo_path, '--report-format', 'json', '--report-path', report_path],
@@ -148,15 +148,14 @@ def run_gitleaks(repo_path, collection, repo_url, current_commit):
             text=True
         )
 
-        # Output stdout and stderr for debugging
-        print("Gitleaks stdout:", result.stdout)
-        print("Gitleaks stderr:", result.stderr)
 
         # Check the exit code
         if result.returncode == 0:
             print("Gitleaks completed successfully.")
+            print()
         elif result.returncode == 1:
             print("Gitleaks found leaks.")
+            print()
             if os.path.exists(report_path):
                 with open(report_path) as report_file:
                     report_data = report_file.read()
@@ -267,6 +266,7 @@ def run_guarddog(clone_dir, collection, repo_url):
         analyze_guarddog(sarif_data)
         print()
         print("Guarddog completed successfully.")
+        print()
     
     except Exception as e:
         print("Error running Guarddog:", e)
@@ -345,6 +345,7 @@ def strip_ansi_escape_codes(text):
 def run_ash_scan(repo_path,repo_name,collection):
     """Run ASH scan on the specified repository directory."""
     print(f"Running ASH scan on {repo_path}...")
+    print()
 
     # Check if the scan repository directory exists
     if not os.path.isdir(repo_path):
@@ -443,6 +444,6 @@ if __name__ == "__main__":
     
     collection = connect_to_mongo('safety_reports')
     run_safety(repo_path, collection, repo_url)
-    query_severity(collection, repo_name)
+    
     collection = connect_to_mongo('ash_reports')
     main(repo_path,repo_name,collection)
