@@ -93,7 +93,7 @@ def get_current_commit(repo_path):
         print(f"Error while getting current commit: {e}")
         return None
 
-def analyze_gitleaks_report(report_data, current_commit):
+def analyze_gitleaks_report(report_data, current_commit,collection):
     leaks = json.loads(report_data)
 
     total_leaks = len(leaks)
@@ -106,6 +106,21 @@ def analyze_gitleaks_report(report_data, current_commit):
         leaks_by_commit[commit] += 1
         if current_commit == commit:
             print(f"Number of leaks in the current commit ({current_commit}): {leaks_by_commit[current_commit]}")
+            document = {
+                "repo_name": repo_name, 
+                "current_commit": current_commit,
+                "leaks": leaks_by_commit[current_commit]
+            }
+            collection.insert_one(document)
+            print("Number of leaks in current commit added to MongoDB")
+    document = {
+                "repo_name": repo_name, 
+                "current_commit": current_commit,
+                "leaks": 0
+            }
+    collection.insert_one(document)
+    print("Number of leaks in current commit added to MongoDB")    
+    
 
     # Output the analysis summary
     for commit, count in leaks_by_commit.items():
@@ -171,7 +186,7 @@ def run_gitleaks(repo_path, collection, repo_url, current_commit):
                     store_mongo(report_data, collection,repo_name)
                     print("Successfully add report to MongoDB")
                     print()  # Extract repo name for context
-                    analyze_gitleaks_report(report_data, current_commit)
+                    analyze_gitleaks_report(report_data, current_commit,collection)
             else:
                 print(f"Report file not found: {report_path}")
         else:
@@ -185,8 +200,6 @@ def run_gitleaks(repo_path, collection, repo_url, current_commit):
 import os
 import re
 import subprocess
-import json
-import sys
 
 def run_safety(repo_path, collection, repo_url): 
     try:
@@ -203,38 +216,27 @@ def run_safety(repo_path, collection, repo_url):
 
         # Split the output into lines
         lines = result.stdout.splitlines()
-        vulnerabilities = []
-        package_name = None
+        added_packages = set()  # Track packages that we've already added
 
         for line in lines:
-            # Match the package line with vulnerabilities count (handles both singular/plural)
-            package_match = re.match(r"^(.*?)==(\d+\.\d+\.\d+)\s+\[(\d+) vulnerabilit(?:y|ies) found\]$", line.strip())
+            # Match the package format: "package==version  [X vulnerabilities found]"
+            package_match = re.search(r"^([\w\-]+)==([\d.]+).*?\[(\d+) vulnerabilities found\]", line.strip())
+
             if package_match:
-                # Found a new package, set the package name
                 package_name = package_match.group(1)
-                print(f"Package found: {package_name}")
-                continue
 
-            # Match vulnerability details with or without CVE
-            vuln_match = re.match(r"^\s*-> Vuln ID (\d+): (?:CVE-(\d+)-(\d+), )?CVSS Severity (.*)", line.strip())
-            if vuln_match and package_name:
-                vuln_id = vuln_match.group(1)
-                severity = vuln_match.group(4)  # Using group 4 for severity
-                vulnerabilities.append({
-                    "repo_name": repo_name,
-                    "package_name": package_name,
-                    "vuln_id": vuln_id,
-                    "severity": severity
-                })
-                print(f"Vulnerability added: {vuln_id} - Severity: {severity}")
-                print()
+                # Avoid duplicates by checking if this package was already added
+                if package_name not in added_packages:
+                    # Insert vulnerability record for each unique package found
+                    collection.insert_one({
+                        "repo_name": repo_name,
+                        "package_name": package_name
+                    })
+                    added_packages.add(package_name)  # Mark this package as added
+                    print(f"Vulnerability added for package: {package_name}")
 
-        # Insert vulnerabilities into the database if found
-        if vulnerabilities:
-            collection.insert_many(vulnerabilities)
-            print(f"Inserted {len(vulnerabilities)} vulnerabilities for repo {repo_name} into the database.")
-        else:
-            # No vulnerabilities found, insert document with output 0
+        # If no vulnerabilities were added, insert a "no vulnerabilities" record
+        if not added_packages:
             collection.insert_one({"repo_name": repo_name, "output": 0})
             print(f"No vulnerabilities found for repo {repo_name}, inserted 'output: 0' into the database.")
 
@@ -244,6 +246,8 @@ def run_safety(repo_path, collection, repo_url):
         print(f"Error running safety scan: {e.stderr}")
     except Exception as e:
         print(f"An unexpected error occurred: {str(e)}")
+
+
 
 def run_guarddog(clone_dir, collection, repo_url):
     repo_name = get_repo_name(repo_url)
@@ -463,7 +467,6 @@ if __name__ == "__main__":
     leaks_current(collection, current_commit)
     print()
     print()
-
     collection = connect_to_mongo('guarddog_reports')
     run_guarddog(repo_path, collection, repo_url)
     
@@ -472,3 +475,4 @@ if __name__ == "__main__":
     
     collection = connect_to_mongo('ash_reports')
     main(repo_path,repo_name,collection)
+    
