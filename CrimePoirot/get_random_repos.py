@@ -3,7 +3,7 @@ import random
 
 # GitHub API URL for repository search
 api_url = "https://api.github.com/search/repositories"
-query = "stars:>1 language:Python size:0..10000"  # Python repositories up to 10 MB in size
+query = "stars:<100 language:Python size:0..10000"  # Python repositories up to 10 MB in size
 headers = {
     "Accept": "application/vnd.github.v3+json"
 }
