@@ -120,7 +120,7 @@ def run_gitleaks(repo_path, collection, repo_url, current_commit):
     gitleaks_path = os.getenv("GITLEAKS_PATH")  # Get path to gitleaks executable from environment variable
     print(f"Gitleaks path: {gitleaks_path}")  # Print the path for debugging
     report_path = os.path.join(repo_path, 'gitleaks_report.json')  # Set report path
-
+    repo_name = get_repo_name(repo_url)
     try:
         print(f"Running Gitleaks on {repo_path}...")
         print()
@@ -153,13 +153,24 @@ def run_gitleaks(repo_path, collection, repo_url, current_commit):
         if result.returncode == 0:
             print("Gitleaks completed successfully.")
             print()
+            document = {
+                "repo_name": repo_name , 
+                "current_commit": current_commit,
+                "leaks": 0
+            }
+            collection.insert_one(document)
+            print("Gitleaks add empty report to MongoDB.")
+            print()
         elif result.returncode == 1:
             print("Gitleaks found leaks.")
             print()
             if os.path.exists(report_path):
                 with open(report_path) as report_file:
                     report_data = report_file.read()
-                    repo_name = get_repo_name(repo_url)  # Extract repo name for context
+                    repo_name = get_repo_name(repo_url)
+                    store_mongo(report_data, collection,repo_name)
+                    print("Successfully add report to MongoDB")
+                    print()  # Extract repo name for context
                     analyze_gitleaks_report(report_data, current_commit)
             else:
                 print(f"Report file not found: {report_path}")
@@ -170,6 +181,12 @@ def run_gitleaks(repo_path, collection, repo_url, current_commit):
     except Exception as e:
         print("Error running Gitleaks:", e)
         sys.exit(1)
+
+import os
+import re
+import subprocess
+import json
+import sys
 
 def run_safety(repo_path, collection, repo_url): 
     try:
@@ -217,7 +234,9 @@ def run_safety(repo_path, collection, repo_url):
             collection.insert_many(vulnerabilities)
             print(f"Inserted {len(vulnerabilities)} vulnerabilities for repo {repo_name} into the database.")
         else:
-            print("No vulnerabilities found.")
+            # No vulnerabilities found, insert document with output 0
+            collection.insert_one({"repo_name": repo_name, "output": 0})
+            print(f"No vulnerabilities found for repo {repo_name}, inserted 'output: 0' into the database.")
 
     except FileNotFoundError:
         print(f"Error: The directory {repo_path} does not exist.")
@@ -253,24 +272,30 @@ def run_guarddog(clone_dir, collection, repo_url):
         
         output_data = sarif_data.get('runs', [])[0].get('results', [])
         
-        for result in output_data:
-            rule_id = result.get('ruleId', 'N/A')
-            output_text = result.get('message', {}).get('text', 'N/A') 
-            document = {
-                "repo_name": repo_name,
-                "rule_id": rule_id,
-                "output_text": output_text
-            }
-            collection.insert_one(document)
+        if output_data:
+            for result in output_data:
+                rule_id = result.get('ruleId', 'N/A')
+                output_text = result.get('message', {}).get('text', 'N/A') 
+                document = {
+                    "repo_name": repo_name,
+                    "rule_id": rule_id,
+                    "output_text": output_text
+                }
+                collection.insert_one(document)
+            print("Successfully guarddog report added to MongoDB")
+        else:
+            # No suspicious results found, insert document with output 0
+            collection.insert_one({"repo_name": repo_name, "output": 0})
+            print(f"No suspicious findings for repo {repo_name}, inserted 'output: 0' into the database.")
 
+        print()
         analyze_guarddog(sarif_data)
-        print()
         print("Guarddog completed successfully.")
-        print()
     
     except Exception as e:
         print("Error running Guarddog:", e)
         sys.exit(1)
+
 
 def query_severity(collection, repo_name):
     num_high_severity = 0
