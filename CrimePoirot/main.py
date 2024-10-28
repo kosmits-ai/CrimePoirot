@@ -197,9 +197,6 @@ def run_gitleaks(repo_path, collection, repo_url, current_commit):
         print("Error running Gitleaks:", e)
         sys.exit(1)
 
-import os
-import re
-import subprocess
 
 def run_safety(repo_path, collection, repo_url): 
     try:
@@ -248,6 +245,47 @@ def run_safety(repo_path, collection, repo_url):
         print(f"An unexpected error occurred: {str(e)}")
 
 
+def run_bearer(repo_path,collection):
+    os.chdir(repo_path)  # Ensure you change to the correct directory
+    repo_name = get_repo_name(repo_path)
+    try:
+        result = subprocess.run(
+        ['bearer', 'scan', '.', '--exit-code', '0'],
+        check=True,
+        capture_output=True,
+        text=True
+    )
+        
+        print("Scan completed successfully.")
+        
+        summary_pattern = re.compile(r"CRITICAL:\s(\d+).*HIGH:\s(\d+).*MEDIUM:\s(\d+).*LOW:\s(\d+).*WARNING:\s(\d+)", re.DOTALL)
+        summary_match = summary_pattern.search(result.stdout)
+        
+        if summary_match:
+            # Parse the counts
+            critical = int(summary_match.group(1))
+            high = int(summary_match.group(2))
+            medium = int(summary_match.group(3))
+            low = int(summary_match.group(4))
+            warning = int(summary_match.group(5))
+            scan_summary = {
+                "repository": repo_name,
+                "critical": critical,
+                "high": high,
+                "medium": medium,
+                "low": low,
+                "warning": warning
+            }
+            
+            collection.insert_one(scan_summary)  # Insert the document
+            print("Summary saved to MongoDB:", scan_summary)
+            
+        else:
+            print("No summary found in the output.")
+        print("Output:", result.stdout)  # Print the standard output
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to run Bearer scan: {e}")
+     
 
 def run_guarddog(clone_dir, collection, repo_url):
     repo_name = get_repo_name(repo_url)
@@ -461,6 +499,7 @@ if __name__ == "__main__":
         print("Failed to retrieve current commit.")
         print()
 
+
     collection = connect_to_mongo('gitleaks_reports')  # This stores the collection returned from connect_to_mongo
     # Run Gitleaks and pass the collection object to it
     run_gitleaks(repo_path, collection, repo_url, current_commit)  # Collection is passed here to run_gitleaks
@@ -473,6 +512,8 @@ if __name__ == "__main__":
     collection = connect_to_mongo('safety_reports')
     run_safety(repo_path, collection, repo_url)
     
-    collection = connect_to_mongo('ash_reports')
-    main(repo_path,repo_name,collection)
+    #collection = connect_to_mongo('ash_reports')
+   # main(repo_path,repo_name,collection)
     
+    collection = connect_to_mongo('bearer_reports')
+    run_bearer(repo_path, collection)
