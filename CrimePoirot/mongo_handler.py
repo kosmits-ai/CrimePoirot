@@ -2,6 +2,7 @@ import os
 import sys
 from pymongo import MongoClient
 from dotenv import load_dotenv
+import csv 
 
 # Load environment variables from .env file
 load_dotenv()
@@ -30,6 +31,7 @@ def count_current_leaks(repo_name, collection):
     if matching_document:  # Check if a document is found
         current_leaks = matching_document.get("leaks", 0)
         print(f"Total leaks pushed in current commit: {current_leaks}")
+        return current_leaks
     else:
         print(f"No document found for repository: {repo_name}")
 
@@ -42,6 +44,7 @@ def count_guarddog_findings(repo_name, collection):
 
 
     print(f"Total guarddog findings: {guarddog_findings}")
+    return guarddog_findings
 
 def count_safety_findings(repo_name, collection):
     safety_findings = 0
@@ -50,6 +53,7 @@ def count_safety_findings(repo_name, collection):
         "package_name": {"$exists": True, "$ne": ""} 
     })
     print(f"Total safety findings: {safety_findings}")
+    return safety_findings
 
 # Function to count documents and calculate vulnerabilities for a specific repository
 def count_vulnerabilities(repo_name, collection):
@@ -70,6 +74,27 @@ def count_vulnerabilities(repo_name, collection):
     # Print the results
     print(f"Repository: {repo_name}")
     print(f"Total critical and high vulnerabilities: {total_critical + total_high}")
+    return total_critical + total_high
+
+def save_to_csv(repo_name, current_leaks, guarddog_findings, safety_findings, total_vulns):
+    # File name for the CSV
+    csv_file = os.getenv("BASE_DIR")
+    
+    # Check if the file exists
+    file_exists = os.path.isfile(csv_file)
+    
+    # Open the file in append mode
+    with open(csv_file, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        
+        # If the file doesn't exist, write the header
+        if not file_exists:
+            writer.writerow(["Repository", "Current Leaks", "Guarddog Findings", "Safety Findings", "Critical and High Vulns"])
+        
+        # Write the data
+        writer.writerow([repo_name, current_leaks, guarddog_findings, safety_findings, total_vulns])
+
+
 
 # Main execution
 if __name__ == "__main__":
@@ -83,15 +108,17 @@ if __name__ == "__main__":
     collection = connect_to_mongo("bearer_reports")
 
     # Count vulnerabilities for the given repository
-    count_vulnerabilities(repo_name, collection)
+    total_vuln = count_vulnerabilities(repo_name, collection)
 
     collection = connect_to_mongo("gitleaks_reports")
 
-    count_current_leaks(repo_name, collection)
+    current_leaks = count_current_leaks(repo_name, collection)
 
 
     collection = connect_to_mongo("guarddog_reports")
-    count_guarddog_findings(repo_name, collection)
+    guarddog_findings = count_guarddog_findings(repo_name, collection)
 
     collection = connect_to_mongo("safety_reports")
-    count_safety_findings(repo_name, collection)
+    safety_findings = count_safety_findings(repo_name, collection)
+
+    save_to_csv(repo_name, current_leaks, guarddog_findings, safety_findings, total_vuln)
