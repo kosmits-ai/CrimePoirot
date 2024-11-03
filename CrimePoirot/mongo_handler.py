@@ -36,15 +36,19 @@ def count_current_leaks(repo_name, collection):
         print(f"No document found for repository: {repo_name}")
 
 def count_guarddog_findings(repo_name, collection):
-    guarddog_findings = 0
-    guarddog_findings = collection.count_documents({
-        "repo_name": repo_name,
-        "output_text": {"$exists": True, "$ne": ""}  # Check if output_text exists and is not empty
-    })
-
-
+    # Check if there is a document with output_text equal to "No requirements.txt"
+    if collection.find_one({"repo_name": repo_name, "output_text": "No requirements.txt"}):
+        guarddog_findings = "No requirements.txt"
+    else:
+        # Count documents that have output_text and are not equal to "No requirements.txt"
+        guarddog_findings = collection.count_documents({
+            "repo_name": repo_name,
+            "output_text": {"$exists": True, "$ne": "No requirements.txt"}
+        })
+    
     print(f"Total guarddog findings: {guarddog_findings}")
     return guarddog_findings
+
 
 def count_safety_findings(repo_name, collection):
     safety_findings = 0
@@ -78,13 +82,13 @@ def count_vulnerabilities(repo_name, collection):
 
 def save_to_csv(repo_name, current_leaks, guarddog_findings, safety_findings, total_vulns):
     # File name for the CSV
-    csv_file = os.getenv("BASE_DIR")
+    csv_file = os.getenv("CSV_PATH")
     
     # Check if the file exists
     file_exists = os.path.isfile(csv_file)
     
     # Open the file in append mode
-    with open(csv_file, mode='w', newline='') as file:
+    with open(csv_file, mode='a', newline='') as file:
         writer = csv.writer(file)
         
         # If the file doesn't exist, write the header
