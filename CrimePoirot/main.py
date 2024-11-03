@@ -282,6 +282,7 @@ def run_bearer(repo_path,collection):
             
         else:
             print("No summary found in the output.")
+            collection.insert_one({"repository": repo_name , "critical": 0, "high": 0, "medium": 0, "low": 0, "warning": 0})
         print("Output:", result.stdout)  # Print the standard output
     except subprocess.CalledProcessError as e:
         print(f"Failed to run Bearer scan: {e}")
@@ -327,7 +328,7 @@ def run_guarddog(clone_dir, collection, repo_url):
             print("Successfully guarddog report added to MongoDB")
         else:
             # No suspicious results found, insert document with output 0
-            collection.insert_one({"repo_name": repo_name, "output": 0})
+            collection.insert_one({"repo_name": repo_name, "output_text": 0})
             print(f"No suspicious findings for repo {repo_name}, inserted 'output: 0' into the database.")
 
         print()
@@ -336,7 +337,7 @@ def run_guarddog(clone_dir, collection, repo_url):
     
     except Exception as e:
         print("Error running Guarddog:", e)
-        sys.exit(1)
+        collection.insert_one({"repo_name": repo_name, "output_text": "No requirements.txt"})
 
 
 def query_severity(collection, repo_name):
