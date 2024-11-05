@@ -217,7 +217,7 @@ def run_safety(repo_path, collection, repo_url):
 
         for line in lines:
             # Match the package format: "package==version  [X vulnerabilities found]"
-            package_match = re.search(r"^([\w\-]+)==([\d.]+).*?\[(\d+) vulnerabilities found\]", line.strip())
+            package_match = re.search(r"^([\w\-]+)==([\d.]+).*?\[(\d+) vulnerabilit(?:y|ies) found(?:,.*)?\]", line.strip())
 
             if package_match:
                 package_name = package_match.group(1)
@@ -355,8 +355,6 @@ def leaks_current(collection, current_commit):
     print(f"Leaks passed in current commit: {num_current_leaks}")
 
 
-
-
 # Define directories from environment variables
 REPO_DIR = os.getenv("REPO_DIR")
 REPO_NAME = "automated-security-helper"
@@ -425,7 +423,7 @@ def run_ash_scan(repo_path,repo_name,collection):
     try:
         # Run the ASH scan command
         result = subprocess.run(
-            ['./ash', '--source-dir', repo_path, '--output-dir', OUTPUT_DIR],
+            ['./ash','--format','json', '--source-dir', repo_path, '--output-dir', OUTPUT_DIR],
             cwd=ash_repo_path,
             capture_output=True,  # Capture stdout and stderr
             text=True,            # Return output as string
@@ -514,7 +512,13 @@ if __name__ == "__main__":
     run_safety(repo_path, collection, repo_url)
     
     #collection = connect_to_mongo('ash_reports')
-   # main(repo_path,repo_name,collection)
+    #main(repo_path,repo_name,collection)
     
     collection = connect_to_mongo('bearer_reports')
     run_bearer(repo_path, collection)
+
+
+
+
+
+
