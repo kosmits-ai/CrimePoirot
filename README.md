@@ -10,8 +10,8 @@ I used four open source projects from Github:
 ### **How To Use:**
 What steps to follow in order to use _CrimePoirot_:
 1. Enable **WSL** in terminal.
-2. In root directory: _git clone https://github.com/kosmits-ai/CrimePoirot.git_
-3. In root directory: _git clone https://github.com/gitleaks/gitleaks_
+2. In root directory: `git clone https://github.com/kosmits-ai/CrimePoirot.git`
+3. In root directory: `git clone https://github.com/gitleaks/gitleaks`
 4. If you have Go installed:
 - `cd gitleaks`
 - `make build`
@@ -21,9 +21,9 @@ What steps to follow in order to use _CrimePoirot_:
 6. Navigate to _CrimePoirot_ and install the required staff:
   - `cd CrimePoirot`
   - `pip install -r requirements.txt`
-7.  Authentication for _Safety_ :
-    - `safety auth`
-8. Install Bearer package:
+7.  Authentication for **Safety** :
+  - `safety auth`
+8. Install **Bearer** package:
   - ```
     sudo apt-get install apt-transport-https
     echo "deb [trusted=yes] https://apt.fury.io/bearer/ /" | sudo tee -a /etc/apt/sources.list.d/fury.list
