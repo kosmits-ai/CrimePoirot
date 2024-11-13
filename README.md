@@ -33,3 +33,8 @@ What steps to follow in order to use _CrimePoirot_:
   - Define **MONGO_URL**
   - Define **BASE_DIR** where the repos will be cloned
   - Define **GITLEAKS_PATH** where the build of Gitleaks is located to.
+
+### **Run the Scripts***
+1. Run four tools in serial architecture: `python main.py` 
+2. Save the results in CSV file: `python mongo_handler.py`
+
