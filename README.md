@@ -13,21 +13,22 @@ What steps to follow in order to use _CrimePoirot_:
 2. In root directory: _git clone https://github.com/kosmits-ai/CrimePoirot.git_
 3. In root directory: _git clone https://github.com/gitleaks/gitleaks_
 4. If you have Go installed:
-- `code` cd gitleaks
-- `code` make build
+- `cd gitleaks`
+- `make build`
 5. Create venv and enable it in root directory:
-  - `python3 -m venv myenv
-  - `enable source myenv/bin/activate
+  - `python3 -m venv myenv`
+  - `enable source myenv/bin/activate`
 6. Navigate to _CrimePoirot_ and install the required staff:
-  - `cd CrimePoirot
-  - `pip install -r requirements.txt
+  - `cd CrimePoirot`
+  - `pip install -r requirements.txt`
 7.  Authentication for _Safety_ :
-    - `safety auth
+    - `safety auth`
 8. Install Bearer package:
-  - ``` sudo apt-get install apt-transport-https
-echo "deb [trusted=yes] https://apt.fury.io/bearer/ /" | sudo tee -a /etc/apt/sources.list.d/fury.list
-sudo apt-get update
-sudo apt-get install bearer
+  - ```
+    sudo apt-get install apt-transport-https
+    echo "deb [trusted=yes] https://apt.fury.io/bearer/ /" | sudo tee -a /etc/apt/sources.list.d/fury.list
+    sudo apt-get update
+    sudo apt-get install bearer
 9. Create **.env** in CrimePoirot folder:
   - Define **MONGO_URL**
   - Define **BASE_DIR** where the repos will be cloned
