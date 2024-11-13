@@ -51,5 +51,5 @@ What steps to follow in order to use _CrimePoirot_:
 
 **PS.** If everything is clear according to a tool, we insert output documents with zero-empty values in MongoDB.
 
-## **Main idea behind this project**
+## **Main idea behind this project:**
 The main idea behind this project was building a tool that can check for various parameters which affect the security trust for a specific repository. After evaluating the findings of **Gitleaks, GuardDog, Safety, Bearer** for _100-150_ random repositories, we calculate the mean values of each parameter. We do that in order to check how much a new repository which needs to be scanned will diverge from these mean values. According to this δeviation, a trust score will be calculated. This score will help the owner/ developer to have a quick measure to check about how safe is the repository.
