@@ -13,8 +13,8 @@ What steps to follow in order to use _CrimePoirot_:
 2. In root directory: _git clone https://github.com/kosmits-ai/CrimePoirot.git_
 3. In root directory: _git clone https://github.com/gitleaks/gitleaks_
 4. If you have Go installed:
-- `cd gitleaks
-- `make build
+- `code` cd gitleaks
+- `code` make build
 5. Create venv and enable it in root directory:
   - `python3 -m venv myenv
   - `enable source myenv/bin/activate
