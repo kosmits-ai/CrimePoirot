@@ -7,7 +7,7 @@ I used four open source projects from Github:
 3. **Safety** : Python dependency vulnerability scanner
 4. **Bearer** : Static application security testing (SAST) tool that scans the source code and analyzes the data flows to discover, filter and prioritize security and privacy risks.
 
-### **How To Use:**
+## **How To Use:**
 What steps to follow in order to use _CrimePoirot_:
 1. Enable **WSL** in terminal.
 2. In root directory: `git clone https://github.com/kosmits-ai/CrimePoirot.git`
@@ -34,7 +34,7 @@ What steps to follow in order to use _CrimePoirot_:
   - Define **BASE_DIR** where the repos will be cloned
   - Define **GITLEAKS_PATH** where the build of Gitleaks is located to.
 
-### **Run the Scripts***
+## **Run the Scripts**
 1. Run four tools in serial architecture: `python main.py` 
 2. Save the results in CSV file: `python mongo_handler.py`
 
