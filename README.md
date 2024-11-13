@@ -34,11 +34,11 @@ What steps to follow in order to use _CrimePoirot_:
   - Define **BASE_DIR** where the repos will be cloned
   - Define **GITLEAKS_PATH** where the build of Gitleaks is located to.
 
-## **Run the Scripts**
+## **Run the Scripts:**
 1. Run four tools in serial architecture: `python main.py` 
 2. Save the results in CSV file: `python mongo_handler.py`
 
-## **How it works**
+## **How it works:**
 1. You enter a github repository url.
 2. GitLeaks is running...
 3. Leaked credentials -if they exist- stored in MongoDB.
@@ -51,5 +51,5 @@ What steps to follow in order to use _CrimePoirot_:
 
 **PS.** If everything is clear according to a tool, we insert output documents with zero-empty values in MongoDB.
 
-## **Main idea behind this proect**
+## **Main idea behind this project**
 The main idea behind this project was building a tool that can check for various parameters which affect the security trust for a specific repository. After evaluating the findings of **Gitleaks, GuardDog, Safety, Bearer** for _100-150_ random repositories, we calculate the mean values of each parameter. We do that in order to check how much a new repository which needs to be scanned will diverge from these mean values. According to this δeviation, a trust score will be calculated. This score will help the owner/ developer to have a quick measure to check about how safe is the repository.
