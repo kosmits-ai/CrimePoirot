@@ -117,7 +117,6 @@ def save_to_csv(repo_name, counter, current_leaks, guarddog_findings, safety_fin
         writer.writerow([repo_name, counter, current_leaks, guarddog_findings, safety_findings, total_vulns[0], total_vulns[1], total_vulns[2], total_vulns[3]])
 
 
-
 # Main execution
 if __name__ == "__main__":
     
@@ -143,4 +142,25 @@ if __name__ == "__main__":
     collection = connect_to_mongo("safety_reports")
     safety_findings = count_safety_findings(repo_name, collection)
 
-    save_to_csv(repo_name, counter, current_leaks, guarddog_findings, safety_findings,total_vulns)
+    #save_to_csv(repo_name, counter, current_leaks, guarddog_findings, safety_findings,total_vulns)
+
+    collection = connect_to_mongo("final_results")
+    
+    # Create the document with the results
+    document = {
+        "repo_name": repo_name,
+        "critical_vulns": total_vulns[0],  # Store each value separately
+        "high_vulns": total_vulns[1],
+        "medium_vulns": total_vulns[2],
+        "low_vulns": total_vulns[3],
+        "counter": counter,
+        "guarddog_findings": guarddog_findings,
+        "safety_findings": safety_findings,
+    }
+    
+    # Insert the document into the collection
+    collection.insert_one(document)
+    
+    print(f"Document saved for {repo_name} in 'final_results' collection.")
+
+
