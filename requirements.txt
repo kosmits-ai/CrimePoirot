@@ -64,3 +64,4 @@ urllib3==2.2.2
 wcmatch==8.5.2
 wcwidth==0.2.13
 yara-python==4.5.1
+zipp>=3.19.1 # not directly required, pinned by Snyk to avoid a vulnerability
