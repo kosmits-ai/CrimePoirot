@@ -119,8 +119,10 @@ def save_to_csv(repo_name, counter, current_leaks, guarddog_findings, safety_fin
 
 # Main execution
 if __name__ == "__main__":
+    repo_url = sys.argv[1]
+
     
-    repo_url = input("Enter the repository URL: ")
+   # repo_url = input("Enter the repository URL: ")
     
     # Connect to MongoDB Atlas and get the collection
     repo_name = get_repo_name(repo_url)
@@ -143,7 +145,7 @@ if __name__ == "__main__":
     safety_findings = count_safety_findings(repo_name, collection)
 
     #save_to_csv(repo_name, counter, current_leaks, guarddog_findings, safety_findings,total_vulns)
-
+    
     collection = connect_to_mongo("final_results")
     
     # Create the document with the results
@@ -162,5 +164,8 @@ if __name__ == "__main__":
     collection.insert_one(document)
     
     print(f"Document saved for {repo_name} in 'final_results' collection.")
+    
+
+
 
 
