@@ -6,8 +6,9 @@ import seaborn as sns
 import numpy as np
 import sys  # Import sys for sys.exit
 from pymongo import MongoClient  # Import MongoClient
-
+from scipy.stats import percentileofscore
 import mongo_handler
+import main
 
 def connect_to_mongo(collection_name):
     try:
@@ -35,8 +36,7 @@ def calculate_percentile(value, data_list):
     """
     This function calculates the percentile rank of a value within a list of data.
     """
-    sorted_data = np.sort(data_list)
-    return np.percentile(sorted_data, (np.searchsorted(sorted_data, value) / len(sorted_data)) * 100)
+    return percentileofscore(data_list, value, kind='rank')
 
 load_dotenv()
 csv_path = os.getenv("CSV_PATH")
@@ -62,6 +62,11 @@ data.columns = data.columns.str.strip()
 # List of columns to analyze
 columns_to_analyze = ['Total Repo Leaks', 'Guarddog findings', 'Safety findings', 'Critical Vulns', 'High Vulns', 'Medium Vulns', 'Low Vulns']
 
+variances = data[columns_to_analyze].var()
+weights_variance = variances / variances.sum()
+print(weights_variance)
+
+
 # Loop through each column and calculate statistics
 fig, axes = plt.subplots(nrows=len(columns_to_analyze), ncols=1, figsize=(10, len(columns_to_analyze) * 4))
 
@@ -72,8 +77,8 @@ for i, col in enumerate(columns_to_analyze):
     mean_val = feature_data.mean()
     median_val = feature_data.median()
     std_val = feature_data.std()
-    q1_val = feature_data.quantile(0.85)
-    q3_val = feature_data.quantile(0.238)
+    q1_val = feature_data.quantile(0.5857)
+    q3_val = feature_data.quantile(0.75)
     min_val = feature_data.min()
     max_val = feature_data.max()
     
@@ -82,8 +87,8 @@ for i, col in enumerate(columns_to_analyze):
     print(f"  Mean: {mean_val}")
     print(f"  Median: {median_val}")
     print(f"  Standard Deviation: {std_val}")
-    print(f"  1st Quartile (Q1 - 85%): {q1_val}")
-    print(f"  3rd Quartile (Q3 - 95%): {q3_val}")
+    print(f"  1st Quartile (Q1 - 58.57%): {q1_val}")
+    print(f"  3rd Quartile (Q3 - 75%): {q3_val}")
     print(f"  Min: {min_val}")
     print(f"  Max: {max_val}")
     print("---------------------------------------------------------------------------------")
@@ -96,10 +101,8 @@ for i, col in enumerate(columns_to_analyze):
 plt.tight_layout()
 plt.show()
 
-
-repo_url = input("Enter the repository URL: ")
+repo_url = sys.argv[1]
     
-# Connect to MongoDB Atlas and get the collection
 repo_name = get_repo_name(repo_url)
 
 collection = connect_to_mongo("final_results")
@@ -140,5 +143,23 @@ print(f"Percentile for Safety Findings: {safety_findings_percentile}%")
 leaks_percentile = calculate_percentile(new_leaks, data['Total Repo Leaks'])
 print(f"Percentile for Gitleaks findings: {leaks_percentile}%")
 
-total_score = 100 - ((critical_vulns_percentile + high_vulns_percentile + medium_vulns_percentile + low_vulns_percentile + guarddog_findings_percentile + safety_findings_percentile + leaks_percentile) / 7)
-print(f"Total score: {total_score}")
+total_score = 100 - (critical_vulns_percentile *0.3 + high_vulns_percentile * 0.15 + medium_vulns_percentile * 0.05+ low_vulns_percentile *0.05+ guarddog_findings_percentile * 0.15 + safety_findings_percentile *0.1 + leaks_percentile * 0.2)
+print(f"Total score: {total_score}%")
+
+
+'''
+from sklearn.feature_selection import mutual_info_regression
+
+df = pd.read_csv("report1.csv").drop(columns=['Repo_Name'])  # Your cleaned data
+
+
+# Use mutual information to measure feature importance
+mi = mutual_info_regression(df, df)
+
+# Normalize to get weights
+feature_weights = mi / mi.sum()
+
+# Print feature weights
+print("Feature Weights (Mutual Information):")
+print(feature_weights)
+'''
