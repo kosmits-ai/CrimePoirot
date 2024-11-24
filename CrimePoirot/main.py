@@ -483,8 +483,8 @@ def main(repo_path,repo_name,collection):
 if __name__ == "__main__":
     os.environ["PYTHONUTF8"] = "1"
 
-    # Get repo URL from user input
-    repo_url = input("Enter the repository URL: ")
+    repo_url = sys.argv[1]
+
     
     # Connect to MongoDB Atlas and get the collection
     repo_name = get_repo_name(repo_url)
@@ -516,7 +516,6 @@ if __name__ == "__main__":
     
     collection = connect_to_mongo('bearer_reports')
     run_bearer(repo_path, collection)
-
 
 
 
