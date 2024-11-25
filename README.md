@@ -31,8 +31,7 @@ What steps to follow in order to use _CrimePoirot_:
     sudo apt-get install bearer
   
 ## **Run the Scripts:**
-1. Run four tools in serial architecture: `python main.py` 
-2. Save the results in CSV file: `python mongo_handler.py`
+1. Run four tools in serial architecture: `python run_poirot.py` 
 
 ## **How it works:**
 1. You enter a github repository url.
