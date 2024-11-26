@@ -1,6 +1,11 @@
 import streamlit as st
 import subprocess
 import re
+from dotenv import load_dotenv
+import os 
+
+load_dotenv()
+
 
 def run_scripts_in_window(repo_url):
     """
@@ -42,10 +47,14 @@ def main():
         page_icon="🔍"
     )
 
-    # Header with a styled title
+    # Header with Times New Roman font style
     st.markdown(
         """
         <style>
+        body {
+            font-family: 'Times New Roman', Times, serif;
+        }
+
         .main-title {
             font-size: 2.5em;
             color: #3cd110;
@@ -77,19 +86,29 @@ def main():
         st.subheader("Welcome to CrimePoirot!")
         st.markdown(
             """
-            **CrimePoirot** helps you analyze GitHub repositories for vulnerabilities and calculates a trust score.
-            
             ### 🔑 Features
             - Detects secrets using **GitLeaks**
             - Identifies supply chain risks with **Guarddog**
             - Checks dependencies for vulnerabilities via **Safety**
             - Scans codebases for sensitive data with **Bearer**
             
-            ### 🚀 How to Use:
+            ### 🚀 How to use:
             1. Enter a GitHub repository URL.
             2. Run scripts to analyze the repository.
             3. View detailed results and trust scores.
-            """
+            
+            ### ❓ How it works:
+            1. You enter a github repository url.
+            2. GitLeaks is running...
+            3. Leaked credentials -if they exist- stored in MongoDB.
+            4. Guarddog is running... **(requirements.txt is required in the repo you try to scan)**
+            5. Malicious warnings -if they exist- are stored in MongoDB.
+            6. Safety is running...
+            7. Names of vulnerable packages -if they exist- are stored in MongoDB.
+            8. Bearer is running...
+            9. Count of _Critical, High, Medium, Low_ Vulnerabilities in the source code of the repository.
+            10. A final document with counts of every feauture is stored in a seperate MongoDB collection.
+            """  
         )
 
     # Run Scripts Tab
@@ -117,10 +136,15 @@ def main():
             After evaluating the findings of Gitleaks, GuardDog, Safety, Bearer for 100-150 random repositories, we calculate the mean values of each parameter.
             We do that in order to check how much a new repository which needs to be scanned will diverge from these mean values.
             According to this deviation, a trust score will be calculated.
-            This score will help the owner/ developer to have a quick measure to check about how safe is the repository.
+            This score will help the owner/ developer to have a quick measure to check about how safe is the repository.\n\n
             """
         )
-        st.image("/home/kosmits/histograms.png", caption="CrimePoirot Workflow Overview", use_container_width=True)
+        workflow_path = os.getenv("WORKFLOW_IMAGE_PATH")
+        histograms_path = os.getenv("HISTOGRAMS_IMAGE_PATH")
+        st.markdown("##### Creation workflow of DataBase:")
+        st.image(workflow_path,use_container_width= True)
+        st.markdown("##### Histograms of DataBase Features:")
+        st.image(histograms_path, use_container_width=True)
 
 
     # About Tab
@@ -156,4 +180,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
