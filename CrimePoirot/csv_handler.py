@@ -31,13 +31,15 @@ def get_repo_name(repo_url):
     """Extract the repository name from the URL."""
     return repo_url.split('/')[-1].replace('.git', '')
 
-
+# percentage of data points in the list that are less than or equal to the given value.
 def calculate_percentile(value, data_list):
     """
     This function calculates the percentile rank of a value within a list of data.
     """
     return percentileofscore(data_list, value, kind='rank')
 
+
+#Data processing
 load_dotenv()
 csv_path = os.getenv("CSV_PATH")
 
@@ -61,46 +63,11 @@ data.columns = data.columns.str.strip()
 
 # List of columns to analyze
 columns_to_analyze = ['Total Repo Leaks', 'Guarddog findings', 'Safety findings', 'Critical Vulns', 'High Vulns', 'Medium Vulns', 'Low Vulns']
-
+"""
 variances = data[columns_to_analyze].var()
 weights_variance = variances / variances.sum()
 print(weights_variance)
-
-
-# Loop through each column and calculate statistics
-fig, axes = plt.subplots(nrows=len(columns_to_analyze), ncols=1, figsize=(10, len(columns_to_analyze) * 4))
-
-for i, col in enumerate(columns_to_analyze):
-    feature_data = data[col]
-    
-    # Calculate statistics
-    mean_val = feature_data.mean()
-    median_val = feature_data.median()
-    std_val = feature_data.std()
-    q1_val = feature_data.quantile(0.5857)
-    q3_val = feature_data.quantile(0.75)
-    min_val = feature_data.min()
-    max_val = feature_data.max()
-    
-    # Print the results
-    print(f"Statistics for {col}:")
-    print(f"  Mean: {mean_val}")
-    print(f"  Median: {median_val}")
-    print(f"  Standard Deviation: {std_val}")
-    print(f"  1st Quartile (Q1 - 58.57%): {q1_val}")
-    print(f"  3rd Quartile (Q3 - 75%): {q3_val}")
-    print(f"  Min: {min_val}")
-    print(f"  Max: {max_val}")
-    print("---------------------------------------------------------------------------------")
-    
-    # Create histogram in one figure window
-    axes[i].hist(feature_data, color='skyblue', edgecolor='black')
-    axes[i].set_title(f"Histogram of {col}")
-    axes[i].set_xlabel('Values')
-    axes[i].set_ylabel('Frequency')
-plt.tight_layout()
-plt.show()
-
+"""
 repo_url = sys.argv[1]
     
 repo_name = get_repo_name(repo_url)
@@ -119,7 +86,7 @@ new_safety_findings = new_repo_data['safety_findings']
 new_leaks = new_repo_data['counter']
 
 
-# Calculate percentile for 'Critical Vulns'
+# Calculate percentiles for features of new repo 
 critical_vulns_percentile = calculate_percentile(new_critical_vulns, data['Critical Vulns'])
 print(f"Percentile for Critical Vulns: {critical_vulns_percentile}%")
 
@@ -132,34 +99,19 @@ print(f"Percentile for Medium Vulns: {medium_vulns_percentile}%")
 low_vulns_percentile = calculate_percentile(new_low_vulns, data['Low Vulns'])
 print(f"Percentile for Low Vulns: {low_vulns_percentile}%")
 
-# Calculate percentile for 'Guarddog Findings'
+
 guarddog_findings_percentile = calculate_percentile(new_guarddog_findings, data['Guarddog findings'])
 print(f"Percentile for Guarddog Findings: {guarddog_findings_percentile}%")
 
-# Calculate percentile for 'Safety Findings'
+
 safety_findings_percentile = calculate_percentile(new_safety_findings, data['Safety findings'])
 print(f"Percentile for Safety Findings: {safety_findings_percentile}%")
 
 leaks_percentile = calculate_percentile(new_leaks, data['Total Repo Leaks'])
 print(f"Percentile for Gitleaks findings: {leaks_percentile}%")
 
-total_score = 100 - (critical_vulns_percentile *0.3 + high_vulns_percentile * 0.15 + medium_vulns_percentile * 0.05+ low_vulns_percentile *0.05+ guarddog_findings_percentile * 0.15 + safety_findings_percentile *0.1 + leaks_percentile * 0.2)
+total_score = 100 - (critical_vulns_percentile *0.2 + high_vulns_percentile * 0.2 + medium_vulns_percentile * 0.05+ low_vulns_percentile *0.05+ guarddog_findings_percentile * 0.1 + safety_findings_percentile *0.1 + leaks_percentile * 0.3)
 print(f"Total score: {total_score}%")
 
 
-'''
-from sklearn.feature_selection import mutual_info_regression
 
-df = pd.read_csv("report1.csv").drop(columns=['Repo_Name'])  # Your cleaned data
-
-
-# Use mutual information to measure feature importance
-mi = mutual_info_regression(df, df)
-
-# Normalize to get weights
-feature_weights = mi / mi.sum()
-
-# Print feature weights
-print("Feature Weights (Mutual Information):")
-print(feature_weights)
-'''
