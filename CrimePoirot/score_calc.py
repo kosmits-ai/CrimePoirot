@@ -1,8 +1,11 @@
 import pandas as pd
 import numpy as np
+from dotenv import load_dotenv
+import os
 
+load_dotenv()
 # Load your dataset (assuming 'df' is already cleaned and contains only numerical features)
-csv_file = '/home/kosmits/CrimePoirot/report.csv'  # Set the path to your actual file
+csv_file = os.getenv("CSV_PATH")  # Set the path to your actual file
 df = pd.read_csv(csv_file)
 
 # Drop non-numeric columns (like 'Repo_Name' or any other non-numeric columns)
