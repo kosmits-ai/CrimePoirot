@@ -32,11 +32,9 @@ def get_repo_name(repo_url):
     return repo_url.split('/')[-1].replace('.git', '')
 
 # percentage of data points in the list that are less than or equal to the given value.
-def calculate_percentile(value, data_list):
-    """
-    This function calculates the percentile rank of a value within a list of data.
-    """
-    return percentileofscore(data_list, value, kind='rank')
+def calculate_percentile(value, data):
+        return percentileofscore(data, value, kind='rank')
+
 
 
 #Data processing
@@ -63,11 +61,8 @@ data.columns = data.columns.str.strip()
 
 # List of columns to analyze
 columns_to_analyze = ['Total Repo Leaks', 'Guarddog findings', 'Safety findings', 'Critical Vulns', 'High Vulns', 'Medium Vulns', 'Low Vulns']
-"""
-variances = data[columns_to_analyze].var()
-weights_variance = variances / variances.sum()
-print(weights_variance)
-"""
+
+
 repo_url = sys.argv[1]
     
 repo_name = get_repo_name(repo_url)
@@ -84,6 +79,14 @@ new_low_vulns = new_repo_data['low_vulns']
 new_guarddog_findings = new_repo_data['guarddog_findings']
 new_safety_findings = new_repo_data['safety_findings']
 new_leaks = new_repo_data['counter']
+
+print(f"{new_critical_vulns}")
+print(f"{new_high_vulns}")
+print(f"{new_medium_vulns}")
+print(f"{new_low_vulns}")
+print(f"{new_guarddog_findings}")
+print(f"{new_safety_findings}")
+print(f"{new_leaks}")
 
 
 # Calculate percentiles for features of new repo 
@@ -112,6 +115,8 @@ print(f"Percentile for Gitleaks findings: {leaks_percentile}%")
 
 total_score = 100 - (critical_vulns_percentile *0.2 + high_vulns_percentile * 0.2 + medium_vulns_percentile * 0.05+ low_vulns_percentile *0.05+ guarddog_findings_percentile * 0.1 + safety_findings_percentile *0.1 + leaks_percentile * 0.3)
 print(f"Total score: {total_score}%")
+
+
 
 
 
