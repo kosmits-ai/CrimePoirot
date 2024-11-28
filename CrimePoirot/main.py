@@ -157,12 +157,11 @@ def run_gitleaks(repo_path, collection, repo_url, current_commit):
 
         # Run Gitleaks with the "detect" command
         result = subprocess.run(
-            [gitleaks_path, 'detect', '--source', repo_path, '--report-format', 'json', '--report-path', report_path],
-            check=False,  # Allow capturing exit codes
-            capture_output=True,
-            text=True
-        )
-
+                [gitleaks_path, 'git', repo_path, '--report-format', 'json', '--report-path', report_path],
+                check=False,  # Allow capturing exit codes
+                capture_output=True,
+                text=True
+                )
 
         # Check the exit code
         if result.returncode == 0:
@@ -299,24 +298,31 @@ def run_guarddog(clone_dir, collection, repo_url):
         output_file = os.path.join(clone_dir, 'guarddog.sarif')
         
         command = [
-            'guarddog', 'pypi', 'verify', requirements_path,
-            '--output-format', 'sarif', 
-            '--exclude-rules', 'repository_integrity_mismatch'
+            "python", "-m", "guarddog", "pypi", "verify", 
+            "-x", "repository_integrity_mismatch", 
+            requirements_path,
+            "--output-format", "sarif"  # Add SARIF output format flag
         ]
+
 
         print(f"Running GuardDog to scan {requirements_path}...")
         print()
+        result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
-        with open(output_file, 'w') as outfile:
-            result = subprocess.run(command, stdout=outfile, stderr=subprocess.PIPE, text=True)
+        # Print output to  terminal
+        print(result.stdout)
         
+        #write the report to a file
+        with open(output_file, 'w') as outfile:
+            outfile.write(result.stdout)
+            
         with open(output_file, 'r') as sarif_file:
             sarif_data = json.load(sarif_file)
         
-        output_data = sarif_data.get('runs', [])[0].get('results', [])
+        output_data = sarif_data.get('runs', [])[0].get('results', []) #get the first object of runs list, else zero
         
         if output_data:
-            for result in output_data:
+            for result in output_data: #access each finding in results
                 rule_id = result.get('ruleId', 'N/A')
                 output_text = result.get('message', {}).get('text', 'N/A') 
                 document = {
@@ -516,6 +522,10 @@ if __name__ == "__main__":
     
     collection = connect_to_mongo('bearer_reports')
     run_bearer(repo_path, collection)
+
+
+
+
 
 
 
