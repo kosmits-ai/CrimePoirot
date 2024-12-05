@@ -1,6 +1,7 @@
 from dotenv import load_dotenv
 import os 
 import pandas as pd
+import matplotlib.pyplot as plt
 
 def connect_to_mongo(collection_name):
     try:
@@ -49,3 +50,29 @@ for i, col in enumerate(columns_to_analyze):
     print(f"  Min: {min_val}")
     print(f"  Max: {max_val}")
     print("---------------------------------------------------------------------------------")
+
+n_rows = len(columns_to_analyze)
+n_cols = 1
+fig, axes = plt.subplots(n_rows, n_cols, figsize=(10, n_rows))
+axes = axes.flatten()
+
+for i, col in enumerate(columns_to_analyze):
+    ax = axes[i]
+    data_column = data[col]
+
+    ax.hist(data_column, bins=20, color='#9e9e9e',edgecolor='black',alpha=0.7)
+
+    ax.set_facecolor("white")
+
+    mean_val = data_column.mean()
+
+    median_val = data_column.median()
+
+    ax.axvline(mean_val, color='red', linestyle='--', linewidth=1.5, label=f"Mean: {mean_val:.2f}")
+    ax.axvline(median_val, color='green', linestyle='-', linewidth=1.5, label=f"Median: {median_val:.2f}")
+
+    ax.set_title(col, pad=2)
+    
+plt.tight_layout()
+plt.show()
+
