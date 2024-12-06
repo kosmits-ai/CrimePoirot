@@ -11,7 +11,9 @@ def run_scripts_in_window(repo_url):
     """
     Runs scripts and captures the output.
     """
+    crimepoirot_dir = os.getenv("CRIMEPOIROT_DIR")
     # List of scripts to run
+    os.chdir(crimepoirot_dir)
     scripts = ["main.py", "mongo_handler.py", "csv_handler.py"]
     output = [] # Add progress for each script
     progress = st.progress(0)
@@ -180,4 +182,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
