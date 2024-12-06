@@ -35,7 +35,7 @@ def get_repo_name(repo_url):
 def calculate_percentile(value, data):
     """Calculate the percentile of a value within a dataset."""
     try:
-        return percentileofscore(data, value, kind='weak')
+        return percentileofscore(data, value, kind='strict')
     except Exception as e:
         print(f"Error calculating percentile: {e}")
         return None
@@ -72,15 +72,25 @@ repo_name = get_repo_name(repo_url)
 collection = connect_to_mongo("final_results")
 new_repo_data = get_new_repo_data(repo_name, collection)
 
+def safe_int_conversion(value):
+    """Convert a value to int, handling non-numeric strings."""
+    if isinstance(value, str) and value == 'No requirements.txt':
+        return 0  # or any default value
+    try:
+        return int(value)
+    except ValueError:
+        return 0
+
+
 # Extract findings for the new repository
 try:
-    new_critical_vulns = int(new_repo_data.get('critical_vulns', 0))
-    new_high_vulns = int(new_repo_data.get('high_vulns', 0))
-    new_medium_vulns = int(new_repo_data.get('medium_vulns', 0))
-    new_low_vulns = int(new_repo_data.get('low_vulns', 0))
-    new_guarddog_findings = int(new_repo_data.get('guarddog_findings', 0))
-    new_safety_findings = int(new_repo_data.get('safety_findings', 0))
-    new_leaks = int(new_repo_data.get('counter', 0))
+    new_critical_vulns = safe_int_conversion(new_repo_data.get('critical_vulns', 0))
+    new_high_vulns = safe_int_conversion(new_repo_data.get('high_vulns', 0))
+    new_medium_vulns = safe_int_conversion(new_repo_data.get('medium_vulns', 0))
+    new_low_vulns = safe_int_conversion(new_repo_data.get('low_vulns', 0))
+    new_guarddog_findings = safe_int_conversion(new_repo_data.get('guarddog_findings', 0))
+    new_safety_findings = safe_int_conversion(new_repo_data.get('safety_findings', 0))
+    new_leaks = safe_int_conversion(new_repo_data.get('counter', 0))
 except ValueError as e:
     print(f"Error converting MongoDB data: {e}")
     sys.exit(1)
