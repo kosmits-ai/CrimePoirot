@@ -260,6 +260,14 @@ def run_bearer(repo_path,collection):
         summary_pattern = re.compile(r"CRITICAL:\s(\d+).*HIGH:\s(\d+).*MEDIUM:\s(\d+).*LOW:\s(\d+).*WARNING:\s(\d+)", re.DOTALL)
         summary_match = summary_pattern.search(result.stdout)
         
+        vulnerabilities = []
+        # Extract vulnerability descriptions
+        description_pattern = re.compile(r"(LOW|MEDIUM|HIGH|CRITICAL): (.+?)\nFile:", re.DOTALL)
+        for match in description_pattern.finditer(result.stdout):
+            severity = match.group(1)
+            description = match.group(2).strip()
+            vulnerabilities.append({"severity": severity, "description": description})
+        
         if summary_match:
             # Parse the counts
             critical = int(summary_match.group(1))
@@ -273,7 +281,8 @@ def run_bearer(repo_path,collection):
                 "high": high,
                 "medium": medium,
                 "low": low,
-                "warning": warning
+                "warning": warning,
+                "vulnerabilities": vulnerabilities  # Add descriptions to the document
             }
             
             collection.insert_one(scan_summary)  # Insert the document
@@ -281,8 +290,10 @@ def run_bearer(repo_path,collection):
             
         else:
             print("No summary found in the output.")
-            collection.insert_one({"repository": repo_name , "critical": 0, "high": 0, "medium": 0, "low": 0, "warning": 0})
+            collection.insert_one({"repository": repo_name, "critical": 0, "high": 0, "medium": 0, "low": 0, "warning": 0, "vulnerabilities": []})
+        
         print("Output:", result.stdout)  # Print the standard output
+        
     except subprocess.CalledProcessError as e:
         print(f"Failed to run Bearer scan: {e}")
      
