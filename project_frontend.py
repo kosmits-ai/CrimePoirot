@@ -141,8 +141,8 @@ def main():
             This score will help the owner/ developer to have a quick measure to check about how safe is the repository.\n\n
             """
         )
-        workflow_path = st.secrets["WORKFLOW_IMAGE_PATH"]
-        histograms_path = st.secrets["HISTOGRAMS_IMAGE_PATH"]
+        workflow_path = os.getenv("WORKFLOW_IMAGE_PATH")
+        histograms_path = os.getenv("HISTOGRAMS_IMAGE_PATH")
         st.markdown("##### Creation workflow of DataBase:")
         st.image(workflow_path,use_container_width= True)
         st.markdown("##### Histograms of DataBase Features:")
@@ -182,5 +182,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
 
 
