@@ -389,14 +389,7 @@ if __name__ == "__main__":
 
     repo_url = sys.argv[1]
     repo_name = get_repo_name(repo_url)
-    csv_path = os.getenv("CSV_PATH")
-    data = pd.read_csv(csv_path)
-    for name in data["Repo_Name"]:
-        if repo_name == name:
-            print(f"{repo_name} exists in MongoDB")
-            exit(1)
-        else:
-            continue
+    
     # Connect to MongoDB Atlas and get the collection
 
     repo_path = clone_repo(repo_url)
@@ -411,8 +404,7 @@ if __name__ == "__main__":
 
 
     collection = connect_to_mongo('gitleaks_reports')  # This stores the collection returned from connect_to_mongo
-    if collection.find({"repo_name": repo_name}):
-        exit(0)
+    
     # Run Gitleaks and pass the collection object to it
     run_gitleaks(repo_path, collection, repo_url, current_commit)  # Collection is passed here to run_gitleaks
     leaks_current(collection, current_commit)
