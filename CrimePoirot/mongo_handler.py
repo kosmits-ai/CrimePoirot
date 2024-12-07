@@ -33,8 +33,6 @@ def count_leaks(repo_name, collection):
     counter = 0
     for doc in matching_documents:
         counter += 1
-
-    print(f"Total leaks in repository: {counter}")
     return counter
 
 def count_current_leaks(repo_name, collection):
@@ -43,7 +41,6 @@ def count_current_leaks(repo_name, collection):
     
     if matching_document:  # Check if a document is found
         current_leaks = matching_document.get("leaks", 0)
-        print(f"Total leaks pushed in current commit: {current_leaks}")
         return current_leaks
     else:
         print(f"No document found for repository: {repo_name}")
@@ -61,7 +58,6 @@ def count_guarddog_findings(repo_name, collection):
             "output_text": {"$exists": True, "$nin": ["No requirements.txt", 0]}
         })
     
-    print(f"Total guarddog findings: {guarddog_findings}")
     return guarddog_findings
 
 
@@ -71,7 +67,6 @@ def count_safety_findings(repo_name, collection):
         "repo_name": repo_name,
         "package_name": {"$exists": True, "$ne": ""} 
     })
-    print(f"Total safety findings: {safety_findings}")
     return safety_findings
 
 # Function to count documents and calculate vulnerabilities for a specific repository
@@ -88,13 +83,6 @@ def count_vulnerabilities(repo_name, collection):
         total_vulns[2] += matching_document.get("medium", 0)    # total_medium
         total_vulns[3] += matching_document.get("low", 0)       # total_low
 
-    # Print the results
-    print(f"Repository: {repo_name}")
-    print(f"Total critical vulnerabilities: {total_vulns[0]}")
-    print(f"Total high vulnerabilities: {total_vulns[1]}")
-    print(f"Total medium vulnerabilities: {total_vulns[2]}")
-    print(f"Total low vulnerabilities: {total_vulns[3]}")
-    
     return total_vulns
 
 

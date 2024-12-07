@@ -19,7 +19,6 @@ def run_scripts_in_window(repo_url):
     progress = st.progress(0)
     for idx, script in enumerate(scripts):
         output.append(f"Running {script}...\n")
-        result = subprocess.run(["python3", script, repo_url], text=True)
         try:
             if script == "csv_handler.py":
                 result = subprocess.run(["python3", script, repo_url], capture_output=True, text=True)
@@ -118,6 +117,9 @@ def main():
         st.subheader("Analyze Your Repository")
         repo_url = st.text_input("🔗 Enter GitHub Repository URL", placeholder="https://github.com/username/repo.git")
 
+        if "analysis_successful" not in st.session_state:
+            st.session_state.analysis_successful = False
+
         if st.button("Run Analysis"):
             if repo_url:
                 if re.match(r"https://github\.com/[\w-]+/[\w-]+(\.git)?", repo_url):
@@ -126,10 +128,36 @@ def main():
                         output = run_scripts_in_window(repo_url)
                         st.success("Analysis Completed!")
                         st.text_area("📜 Script Output", value="\n".join(output), height=400)
+                        st.session_state.analysis_successful = True
                 else:
                     st.error("⚠️ Please enter a valid GitHub repository URL.")
             else:
                 st.error("⚠️ Repository URL cannot be empty.")
+        if st.session_state.analysis_successful:
+            if st.button("View detailed output result"):
+                with st.spinner("Printing additional info... Please wait."):
+                    try:
+                        crimepoirot_dir = os.getenv("CRIMEPOIROT_DIR")
+                    # List of scripts to run
+                        os.chdir(crimepoirot_dir)
+                        script_path = os.path.join(os.getcwd(),"view_results.py")
+            # Call the script you want to execute (replace 'your_function' with the actual function name)
+                        additional_output = subprocess.run(["python3", script_path, repo_url], capture_output=True, text=True)
+                        if additional_output:
+                            st.text_area("📜 Additional Script Output", additional_output.stdout, height=400)
+                        else:
+                            st.warning("No output was generated from the script.")
+
+                    # Debugging: Output stderr to check for errors or warnings
+                        if additional_output.stderr:
+                            st.warning(f"Errors or Warnings: {additional_output.stderr}")
+
+                    except subprocess.CalledProcessError as e:
+                        # In case the subprocess fails, capture error and show it
+                        st.error(f"Error executing script: {e}")
+                        if e.stderr:
+                            st.text_area("Error Output", value=e.stderr, height=400)
+                    
     with tabs[2]:
         st.subheader("About CrimePoirot DataBase")
         st.markdown(

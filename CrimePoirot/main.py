@@ -6,7 +6,7 @@ import re
 from collections import defaultdict
 from pymongo import MongoClient
 from dotenv import load_dotenv
-
+import pandas as pd
 ############## After enabling venv you have to do $env:PYTHONUTF8="1" in order to make guarddog and safety run properly. #######################
 
 
@@ -262,12 +262,12 @@ def run_bearer(repo_path,collection):
         
         vulnerabilities = []
         # Extract vulnerability descriptions
-        description_pattern = re.compile(r"(LOW|MEDIUM|HIGH|CRITICAL): (.+?)\nFile:", re.DOTALL)
+        description_pattern = re.compile(r"(LOW|MEDIUM|HIGH|CRITICAL): (.+?)\nFile:\s([^\n]+)\s*", re.DOTALL)
         for match in description_pattern.finditer(result.stdout):
             severity = match.group(1)
             description = match.group(2).strip()
-            vulnerabilities.append({"severity": severity, "description": description})
-        
+            file = match.group(3).strip()
+            vulnerabilities.append({"severity": severity, "description": description, "file":file})
         if summary_match:
             # Parse the counts
             critical = int(summary_match.group(1))
@@ -333,15 +333,26 @@ def run_guarddog(clone_dir, collection, repo_url):
         output_data = sarif_data.get('runs', [])[0].get('results', []) #get the first object of runs list, else zero
         
         if output_data:
-            for result in output_data: #access each finding in results
-                rule_id = result.get('ruleId', 'N/A')
-                output_text = result.get('message', {}).get('text', 'N/A') 
+            for result in output_data:
+                rule_id = result.get("ruleId", "N/A")
+                output_text = result.get("message", {}).get("text", "N/A").strip()
+                
+                # Remove duplicate lines
+                unique_lines = []
+                for line in output_text.split("\n"):  # Correct indentation here
+                    if line not in unique_lines:
+                        unique_lines.append(line)
+
+                # Use the cleaned-up text
+                output_text = "\n".join(unique_lines)
+
                 document = {
                     "repo_name": repo_name,
                     "rule_id": rule_id,
                     "output_text": output_text
                 }
                 collection.insert_one(document)
+
             print("Successfully guarddog report added to MongoDB")
         else:
             # No suspicious results found, insert document with output 0
@@ -372,139 +383,22 @@ def leaks_current(collection, current_commit):
     print(f"Leaks passed in current commit: {num_current_leaks}")
 
 
-# Define directories from environment variables
-REPO_DIR = os.getenv("REPO_DIR")
-REPO_NAME = "automated-security-helper"
-OUTPUT_DIR = os.getenv("OUTPUT_DIR")
-
-
-def setup_environment():
-    """Set up the necessary environment and dependencies."""
-    print("Setting up the environment...")
-    try:
-        subprocess.run(['sudo', 'apt-get', 'update'], check=True)
-        subprocess.run(['sudo', 'apt-get', 'install', '-y', 'npm'], check=True)
-        subprocess.run(['sudo', 'npm', 'install', '-g', 'pnpm', 'yarn'], check=True)
-    except subprocess.CalledProcessError as e:
-        print(f"Error during environment setup: {e}")
-        exit(1)
-
-
-def clone_and_setup_ash():
-    """Clone ASH repo and set up required dependencies."""
-    print("Cloning ASH repository and setting up dependencies...")
-
-    # Ensure the base repository directory exists
-    os.makedirs(REPO_DIR, exist_ok=True)
-    ash_repo_path = os.path.join(REPO_DIR, REPO_NAME)
-
-    # Clone repository if it doesn't exist
-    if not os.path.isdir(ash_repo_path):
-        try:
-            subprocess.run(
-                ['git', 'clone', 'https://github.com/awslabs/automated-security-helper.git', ash_repo_path],
-                check=True
-            )
-        except subprocess.CalledProcessError as e:
-            print(f"Error cloning repository: {e}")
-            exit(1)
-    else:
-        print("ASH repository already exists. Skipping clone.")
-
-    # Install npm dependencies in cdk-nag-scan directory
-    try:
-        cdk_scan_dir = os.path.join(ash_repo_path, 'utils', 'cdk-nag-scan')
-        subprocess.run(['sudo', 'npm', 'install', '--quiet'], cwd=cdk_scan_dir, check=True)
-    except subprocess.CalledProcessError as e:
-        print(f"Error setting up dependencies: {e}")
-        exit(1)
-
-def strip_ansi_escape_codes(text):
-    """Remove ANSI escape codes from a string."""
-    ansi_escape = re.compile(r'\x1B\[[0-?9;]*[mK]')
-    return ansi_escape.sub('', text)
-
-
-def run_ash_scan(repo_path,repo_name,collection):
-    """Run ASH scan on the specified repository directory."""
-    print(f"Running ASH scan on {repo_path}...")
-    print()
-
-    # Check if the scan repository directory exists
-    if not os.path.isdir(repo_path):
-        print(f"Error: Specified directory {repo_path} does not exist.")
-        exit(1)
-
-    ash_repo_path = os.path.join(REPO_DIR, REPO_NAME)
-    output_file = os.path.join(OUTPUT_DIR, 'aggregated_results.txt')
-    try:
-        # Run the ASH scan command
-        result = subprocess.run(
-            ['./ash','--format','json', '--source-dir', repo_path, '--output-dir', OUTPUT_DIR],
-            cwd=ash_repo_path,
-            capture_output=True,  # Capture stdout and stderr
-            text=True,            # Return output as string
-            check=False           # Do not raise an exception on non-zero exit code
-        )
-        
-        job_results = []
-
-        # Example of how to extract job results from output
-        for line in result.stdout.splitlines():
-            if "Dockerfile" in line and "returned" in line:
-                parts = line.split()
-                dockerfile_name = parts[1]
-                raw_return_code = parts[-1]  # Get the return code
-
-                # Clean the return code
-                return_code = strip_ansi_escape_codes(raw_return_code)
-
-                job_results.append({
-                    "dockerfile": dockerfile_name,
-                    "return_code": return_code
-                })
-
-        # Document structure for MongoDB
-        document = {
-            "repo_name": repo_name,
-            "job_results": job_results
-        }
-
-        # Insert the document into MongoDB
-        collection.insert_one(document)
-        print(f"Scan results for {repo_name} inserted into the database.")
-
-    except Exception as e:
-        print(f"An unexpected error occurred: {e}")
-        exit(1)
-
-
-def display_report():
-    """Display the aggregated results after the scan."""
-    report_file = os.path.join(OUTPUT_DIR, 'aggregated_results.txt')
-    if os.path.isfile(report_file):
-        print("Aggregated Results:")
-        with open(report_file, 'r') as f:
-            print(f.read())
-    else:
-        print("No report found.")
-
-
-def main(repo_path,repo_name,collection):
-    """Main function to orchestrate the setup, scanning, and reporting."""
-    setup_environment()
-    clone_and_setup_ash()
-    run_ash_scan(repo_path,repo_name,collection)
-    display_report()
 
 if __name__ == "__main__":
     os.environ["PYTHONUTF8"] = "1"
 
     repo_url = sys.argv[1]
-
-    
-    # Connect to MongoDB Atlas and get the collection
     repo_name = get_repo_name(repo_url)
+    csv_path = os.getenv("CSV_PATH")
+    data = pd.read_csv(csv_path)
+    for name in data["Repo_Name"]:
+        if repo_name == name:
+            print(f"{repo_name} exists in MongoDB")
+            exit(1)
+        else:
+            continue
+    # Connect to MongoDB Atlas and get the collection
+
     repo_path = clone_repo(repo_url)
     
     current_commit = get_current_commit(repo_path)
@@ -517,6 +411,8 @@ if __name__ == "__main__":
 
 
     collection = connect_to_mongo('gitleaks_reports')  # This stores the collection returned from connect_to_mongo
+    if collection.find({"repo_name": repo_name}):
+        exit(0)
     # Run Gitleaks and pass the collection object to it
     run_gitleaks(repo_path, collection, repo_url, current_commit)  # Collection is passed here to run_gitleaks
     leaks_current(collection, current_commit)
