@@ -60,12 +60,25 @@ if __name__ == "__main__":
 
     # Check Gitleaks findings
     gitleaks_collection = connect_to_mongo("gitleaks_reports")
-    check_findings(
-        gitleaks_collection,
-        repo_name,
-        "leaks",
-        ["Description", "File", "StartLine", "EndLine"]
-    )
+    matching_document = gitleaks_collection.find_one({"repo_name":repo_name , "leaks":0})
+    if matching_document:
+        print(f"No findings found in gitleaks.reports for repository: {repo_name}")
+        print()
+    else:
+        seen = set()  # Set to track printed documents
+        findings = gitleaks_collection.find({"repo_name": repo_name})
+        print("Findings in gitleaks.reports :")
+        for doc in findings:
+                # Create a unique identifier for the finding
+            unique_key = (repo_name, doc.get("Description", "N/A"), doc.get("StartLine", "N/A"), doc.get("EndLine", "N/A"), doc.get("File", "N/A"))
+            if unique_key not in seen:
+                seen.add(unique_key)
+                print(f"Description: {doc.get('Description', 'N/A')}")
+                print(f"File: {doc.get('File', 'N/A')}")
+                print(f"StartLine: {doc.get('StartLine', 'N/A')}")
+                print(f"EndLine: {doc.get('EndLine', 'N/A')}")
+                print()
+        print()
 
     # Check Guarddog findings
     guarddog_collection = connect_to_mongo("guarddog_reports")
@@ -74,27 +87,27 @@ if __name__ == "__main__":
     matching_document = guarddog_collection.find_one({"repo_name":repo_name , "output_text":0})
     if matching_document:
         print(f"No findings found in guarddog.reports for repository: {repo_name}")
+        print()
     else:
         seen = set()  # Set to track printed documents
         findings = guarddog_collection.find({"repo_name": repo_name})
-        print("Findings in safety.reports :")
+        print("Findings in guarddog.reports :")
         for doc in findings:
                 # Create a unique identifier for the finding
             unique_key = (repo_name, doc.get("output_text", "N/A"))
             if unique_key not in seen:
                 seen.add(unique_key)
-                print(f"Package name: {doc.get('output_text', 'N/A')}")
-                print(f"Package name: {doc.get('rule_id', 'N/A')}")
+                print(f"Output text: {doc.get('output_text', 'N/A')}")
+                print(f"Indication rule_id: {doc.get('rule_id', 'N/A')}")
                 print()
         print()
-
-
 
     # Check Safety findings
     safety_collection = connect_to_mongo("safety_reports")
     matching_document = safety_collection.find_one({"repo_name":repo_name , "output":0})
     if matching_document:
         print(f"No findings found in safety.reports for repository: {repo_name}")
+        print()
     else:
         seen = set()  # Set to track printed documents
         findings = safety_collection.find({"repo_name": repo_name})
