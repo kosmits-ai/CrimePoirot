@@ -57,9 +57,14 @@ def clone_repo(repo_url):
 
     # Check if the clone directory already exists
     if os.path.exists(clone_dir):
-        print(f"The directory '{clone_dir}' already exists. Skipping cloning.")
-        print()
-        return clone_dir  # Return the path of the existing repository
+        print(f"The directory '{clone_dir}' already exists. Removing the existing repository...")
+        # Remove the existing directory
+        try:
+            subprocess.run(['rm', '-rf', clone_dir], check=True)  # Be careful with this
+            print(f"Existing repository at '{clone_dir}' removed.")
+        except subprocess.CalledProcessError as e:
+            print(f"Error removing the existing directory: {e}")
+            sys.exit(1)
 
     try:
         print(f"Cloning the repository from {repo_url} to {clone_dir}...")
