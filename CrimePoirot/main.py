@@ -111,22 +111,6 @@ def analyze_gitleaks_report(report_data, current_commit,collection):
         leaks_by_commit[commit] += 1
         if current_commit == commit:
             print(f"Number of leaks in the current commit ({current_commit}): {leaks_by_commit[current_commit]}")
-            document = {
-                "repo_name": repo_name, 
-                "current_commit": current_commit,
-                "leaks": leaks_by_commit[current_commit]
-            }
-            collection.insert_one(document)
-            print("Number of leaks in current commit added to MongoDB")
-    document = {
-                "repo_name": repo_name, 
-                "current_commit": current_commit,
-                "leaks": 0
-            }
-    collection.insert_one(document)
-    print("Number of leaks in current commit added to MongoDB")    
-    
-
     # Output the analysis summary
     for commit, count in leaks_by_commit.items():
         print(f"Commit: {commit} - Total Leaks: {count}")
@@ -167,6 +151,7 @@ def run_gitleaks(repo_path, collection, repo_url, current_commit):
                 capture_output=True,
                 text=True
                 )
+        print(f"Exit code: {result.returncode}")
 
         # Check the exit code
         if result.returncode == 0:
