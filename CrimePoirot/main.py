@@ -315,56 +315,80 @@ def run_guarddog(clone_dir, collection, repo_url):
             "--output-format", "sarif"  # Add SARIF output format flag
         ]
 
-
         print(f"Running GuardDog to scan {requirements_path}...")
         print()
         result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
-        # Print output to  terminal
+        # Print output to terminal
         print(result.stdout)
         
-        #write the report to a file
+        # Write the report to a file
         with open(output_file, 'w') as outfile:
             outfile.write(result.stdout)
-            
+        
+        # Read the SARIF file and clean it
         with open(output_file, 'r') as sarif_file:
-            sarif_data = json.load(sarif_file)
-        
-        output_data = sarif_data.get('runs', [])[0].get('results', []) #get the first object of runs list, else zero
-        
-        if output_data:
-            for result in output_data:
-                rule_id = result.get("ruleId", "N/A")
-                output_text = result.get("message", {}).get("text", "N/A").strip()
-                
-                # Remove duplicate lines
-                unique_lines = []
-                for line in output_text.split("\n"):  # Correct indentation here
-                    if line not in unique_lines:
-                        unique_lines.append(line)
+            lines = sarif_file.readlines()
 
-                # Use the cleaned-up text
-                output_text = "\n".join(unique_lines)
+        # Find the start of the valid SARIF JSON and the first line starting with ERROR
+        valid_json_start_index = None
+        for i, line in enumerate(lines):
+            if line.strip().startswith('{'):
+                valid_json_start_index = i
+                break
 
-                document = {
-                    "repo_name": repo_name,
-                    "rule_id": rule_id,
-                    "output_text": output_text
-                }
-                collection.insert_one(document)
+        # Get the valid JSON content starting from the correct index
+        if valid_json_start_index is not None:
+            valid_lines = lines[valid_json_start_index:]
 
-            print("Successfully guarddog report added to MongoDB")
+            # Rejoin the valid lines into a single string
+            valid_json_content = ''.join(valid_lines)
+
+            # Load the JSON to verify it's valid
+            try:
+                sarif_data = json.loads(valid_json_content)
+            except json.JSONDecodeError as e:
+                print(f"Error decoding JSON: {e}")
+                return
+
+            output_data = sarif_data.get('runs', [])[0].get('results', [])  # Get the first object of the runs list, else zero
+
+            if output_data:
+                for result in output_data:
+                    rule_id = result.get("ruleId", "N/A")
+                    output_text = result.get("message", {}).get("text", "N/A").strip()
+                    
+                    # Remove duplicate lines
+                    unique_lines = []
+                    for line in output_text.split("\n"):
+                        if line not in unique_lines:
+                            unique_lines.append(line)
+
+                    # Use the cleaned-up text
+                    output_text = "\n".join(unique_lines)
+
+                    document = {
+                        "repo_name": repo_name,
+                        "rule_id": rule_id,
+                        "output_text": output_text
+                    }
+                    collection.insert_one(document)
+
+                print("Successfully added GuardDog report to MongoDB.")
+            else:
+                # No suspicious results found, insert document with output 0
+                collection.insert_one({"repo_name": repo_name, "output_text": 0})
+                print(f"No suspicious findings for repo {repo_name}, inserted 'output: 0' into the database.")
+
+            print()
+            analyze_guarddog(sarif_data)
+            print("GuardDog completed successfully.")
         else:
-            # No suspicious results found, insert document with output 0
-            collection.insert_one({"repo_name": repo_name, "output_text": 0})
-            print(f"No suspicious findings for repo {repo_name}, inserted 'output: 0' into the database.")
+            print("Valid SARIF JSON not found.")
+            collection.insert_one({"repo_name": repo_name, "output_text": "Invalid SARIF file format"})
 
-        print()
-        analyze_guarddog(sarif_data)
-        print("Guarddog completed successfully.")
-    
     except Exception as e:
-        print("Error running Guarddog:", e)
+        print("Error running GuardDog:", e)
         collection.insert_one({"repo_name": repo_name, "output_text": "No requirements.txt"})
 
 
