@@ -1,9 +1,36 @@
 <mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36" version="25.0.3">
   <diagram name="Σελίδα-1" id="59wXe2gEVOyYvf0qKf7q">
-    <mxGraphModel>
+    <mxGraphModel dx="875" dy="463" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
+        <mxCell id="Ei7rvfU16AE4jUv3P8NT-2" value="" style="html=1;shadow=0;dashed=0;align=center;verticalAlign=middle;shape=mxgraph.arrows2.uTurnArrow;dy=22;arrowHead=70;dx2=35;strokeColor=#ffffff;fillColor=#23445D;fontSize=12;fontColor=#3333FF;flipV=1;strokeWidth=4;" vertex="1" parent="1">
+          <mxGeometry x="190" y="317" width="230" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="Ei7rvfU16AE4jUv3P8NT-3" value="" style="html=1;shadow=0;dashed=0;align=center;verticalAlign=middle;shape=mxgraph.arrows2.uTurnArrow;dy=22;arrowHead=70;dx2=35;strokeColor=#ffffff;fillColor=#AE4132;fontSize=12;fontColor=#3333FF;flipH=1;flipV=1;strokeWidth=4;" vertex="1" parent="1">
+          <mxGeometry x="260" y="238" width="230" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="Ei7rvfU16AE4jUv3P8NT-4" value="" style="html=1;shadow=0;dashed=0;align=center;verticalAlign=middle;shape=mxgraph.arrows2.uTurnArrow;dy=22;arrowHead=70;dx2=35;strokeColor=#ffffff;fillColor=#F2931E;fontSize=12;fontColor=#3333FF;flipV=1;strokeWidth=4;" vertex="1" parent="1">
+          <mxGeometry x="190" y="159" width="230" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="Ei7rvfU16AE4jUv3P8NT-5" value="" style="html=1;shadow=0;dashed=0;align=center;verticalAlign=middle;shape=mxgraph.arrows2.uTurnArrow;dy=22;arrowHead=70;dx2=35;strokeColor=#ffffff;fillColor=#10739E;fontSize=12;fontColor=#3333FF;flipH=1;flipV=1;strokeWidth=4;" vertex="1" parent="1">
+          <mxGeometry x="190" y="80" width="300" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="Ei7rvfU16AE4jUv3P8NT-6" value="&lt;b&gt;1st Phase:&lt;br&gt;Detection of leaked credentials such as passwords, APIs, tokens by Gitleaks.&lt;/b&gt;" style="rounded=0;whiteSpace=wrap;shadow=0;strokeColor=none;strokeWidth=6;fillColor=none;fontSize=8;fontColor=#FFFFFF;align=left;html=1;spacingLeft=5;fontFamily=Times New Roman;" vertex="1" parent="1">
+          <mxGeometry x="240" y="80" width="150" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="Ei7rvfU16AE4jUv3P8NT-7" value="&lt;b&gt;2nd Phase:&lt;br&gt;Identification of malicious PyPi packages based on heuristic rules by Guarddog.&lt;/b&gt;" style="rounded=0;whiteSpace=wrap;shadow=0;strokeColor=none;strokeWidth=6;fillColor=none;fontSize=8;fontColor=#FFFFFF;align=left;html=1;spacingLeft=5;fontFamily=Times New Roman;" vertex="1" parent="1">
+          <mxGeometry x="240" y="159" width="150" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="Ei7rvfU16AE4jUv3P8NT-8" value="&lt;b&gt;3rd Phase:&lt;br&gt;&lt;/b&gt;Scanning for vulnerable Pypi packages based on OWASP rules by Safety." style="rounded=0;whiteSpace=wrap;shadow=0;strokeColor=none;strokeWidth=6;fillColor=none;fontSize=8;fontColor=#FFFFFF;align=left;html=1;spacingLeft=5;fontFamily=Times New Roman;" vertex="1" parent="1">
+          <mxGeometry x="290" y="238" width="150" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="Ei7rvfU16AE4jUv3P8NT-9" value="&lt;b&gt;4th Phase:&lt;br&gt;Static application security testing that scans the source code for vulnerabilities by Bearer.&lt;/b&gt;" style="rounded=0;whiteSpace=wrap;shadow=0;strokeColor=none;strokeWidth=6;fillColor=none;fontSize=8;fontColor=#FFFFFF;align=left;html=1;spacingLeft=5;fontFamily=Times New Roman;" vertex="1" parent="1">
+          <mxGeometry x="240" y="317" width="150" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="Ei7rvfU16AE4jUv3P8NT-11" value="TRUST SCORE&lt;div&gt;DETAILED OUTPUT&lt;/div&gt;" style="shape=ext;double=1;rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;gradientColor=#ffd966;fontFamily=Times New Roman;" vertex="1" parent="1">
+          <mxGeometry x="290" y="400" width="120" height="50" as="geometry" />
+        </mxCell>
       </root>
     </mxGraphModel>
   </diagram>
